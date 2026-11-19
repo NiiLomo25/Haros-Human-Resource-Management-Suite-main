@@ -1,0 +1,934 @@
+PROJECT MASTER PROMPT
+HUMAN RESOURCE MANAGEMENT INFORMATION SYSTEM (HRMIS)
+1. PROJECT OVERVIEW
+Act as a Senior Software Architect, Enterprise Application Developer, Database Engineer and UI/UX Designer.
+Your task is to design and develop a comprehensive Human Resource Management Information System (HRMIS) as a fully functional Windows Desktop Application.
+The application will be used by Human Resource Departments to manage staff information, departmental structures, staff movements, promotions, transfers, employee records and all other essential human resource management functions.
+The application must be suitable for government institutions, Ministries, Departments and Agencies (MDAs).
+The system must provide a centralized employee database that maintains the complete employment history of every staff member from recruitment to retirement or separation.
+The application must be professional, secure, scalable, reliable and easy to operate.
+The application must work completely offline without requiring an internet connection.
+PROJECT NAME:
+Haros Human Resource Management Information Suite
+2. APPLICATION TYPE AND DEPLOYMENT REQUIREMENTS
+Develop this as a native Windows desktop application.
+Technical requirements:
+•	Framework: .NET 10 LTS
+•	Programming Language: C#
+•	Desktop Framework: WPF
+•	Database: SQLite
+•	ORM: Entity Framework Core
+•	Architecture: Clean Architecture with modular components
+•	UI: Modern Fluent Windows Desktop Interface
+•	Reporting: RDLC or QuestPDF
+•	Excel Export: ClosedXML
+•	Installer: Inno Setup
+Deployment requirements:
+1.	Full standalone Windows installation package.
+2.	Offline installation without internet access.
+3.	No dependency on cloud hosting.
+4.	No mandatory online authentication.
+5.	No external database server required.
+6.	All application data must be stored locally.
+7.	Provide separate 32-bit and 64-bit installation packages.
+8.	Support Windows x86 and x64.
+9.	Package the necessary .NET runtime with the installer.
+10.	Create desktop and Start Menu shortcuts.
+11.	Include an uninstaller.
+12.	Support application upgrades without deleting existing employee records.
+13.	Include automatic database backup functionality.
+Generate two installation packages:
+•	HRMIS-Setup-x86.exe
+•	HRMIS-Setup-x64.exe
+Publish using the appropriate Windows runtime identifiers:
+•	win-x86
+•	win-x64
+Do not produce a web application disguised as a desktop application.
+The final product must be a genuine installable Windows desktop application.
+3. SYSTEM MODULES
+Develop the application using independent but interconnected modules.
+The main modules must include:
+1.	Dashboard
+2.	Staff Management
+3.	Department and Organizational Management
+4.	Staff Movement Management
+5.	Promotion and Career Progression
+6.	Recruitment and Appointment
+7.	Leave Management
+8.	Attendance Management
+9.	Training and Development
+10.	Performance Management
+11.	Payroll and Compensation
+12.	Retirement and Separation
+13.	Disciplinary Management
+14.	Employee Document Management
+15.	Establishment Management
+16.	Reports and Analytics
+17.	User and Access Management
+18.	System Configuration
+19.	Audit Trail
+20.	Backup and Restore
+Each module must have functional interfaces and working database operations.
+Do not create buttons or menus that do nothing.
+4. STAFF MANAGEMENT MODULE
+This is the central module of the application.
+Create a comprehensive employee database.
+Each employee must have a unique Staff ID.
+The employee profile must contain the following sections.
+A. Personal Information
+•	Staff ID
+•	Surname
+•	First Name
+•	Other Names
+•	Full Name
+•	Date of Birth
+•	Age (automatically calculated)
+•	Gender
+•	Marital Status
+•	Nationality
+•	Residential Address
+•	Telephone Number
+•	Email Address
+•	Emergency Contact
+•	Next of Kin
+•	Next of Kin Contact
+•	Photograph
+B. Employment Information
+•	Staff ID
+•	Employee Category
+•	Employment Type
+•	Date of First Appointment
+•	Date of Assumption of Duty
+•	Current Employment Status
+•	Current MDA
+•	Current Department
+•	Current Unit
+•	Current Position/Role
+•	Current Grade
+•	Salary Level
+•	Step
+•	Years in Current Role
+•	Years in Current Grade
+•	Total Years of Service
+•	Reporting Officer
+•	Employment Confirmation Date
+•	Retirement Date
+Calculate the following automatically:
+•	Current Age
+•	Years in Current Role
+•	Years in Current Grade
+•	Total Years of Service
+•	Years Remaining Before Retirement
+Calculations must use the current date and the relevant appointment or effective dates.
+Allow authorized users to correct historical records while maintaining an audit trail.
+C. Educational Qualifications
+Allow multiple qualifications per employee.
+Fields:
+•	Qualification
+•	Institution
+•	Country
+•	Course of Study
+•	Year Obtained
+•	Certificate Number
+•	Supporting Document
+Examples:
+•	WASSCE
+•	Diploma
+•	HND
+•	Bachelor's Degree
+•	Master's Degree
+•	PhD
+•	Professional Qualifications
+D. Professional Memberships
+Record:
+•	Professional Body
+•	Membership Number
+•	Membership Category
+•	Registration Date
+•	Expiry Date
+•	Membership Status
+E. Employment History
+Maintain a complete employment history.
+Record:
+•	Previous Organization
+•	Previous Position
+•	Previous Grade
+•	Start Date
+•	End Date
+•	Reason for Leaving
+F. Employee Documents
+Allow authorized users to upload and manage:
+•	Appointment Letters
+•	Promotion Letters
+•	Transfer Letters
+•	Academic Certificates
+•	Professional Certificates
+•	Confirmation Letters
+•	Leave Approvals
+•	Performance Appraisals
+•	Retirement Documents
+•	Other Employment Documents
+Support PDF, Word, Excel and image attachments.
+Store documents locally in an organized employee document repository.
+5. DEPARTMENT AND ORGANIZATIONAL MANAGEMENT
+Develop an organizational structure management module.
+The system must support:
+•	Ministries
+•	Departments
+•	Agencies
+•	Directorates
+•	Divisions
+•	Units
+•	Sections
+Allow administrators to create and manage organizational structures.
+Each department must contain:
+•	Department Code
+•	Department Name
+•	Parent Department
+•	Department Head
+•	Number of Approved Positions
+•	Number of Occupied Positions
+•	Number of Vacant Positions
+•	Department Status
+Allow users to view employees assigned to each department.
+Provide an organizational hierarchy view.
+The system must calculate:
+•	Total Staff per Department
+•	Male Staff per Department
+•	Female Staff per Department
+•	Staff by Grade
+•	Staff by Age Group
+•	Staff by Employment Category
+•	Vacant Positions
+•	Departmental Staff Distribution
+Allow departments to be reorganized without losing historical information.
+6. STAFF MOVEMENT MANAGEMENT
+This is one of the most important modules.
+The system must maintain a complete record of every movement involving an employee.
+Movement categories:
+1.	Transfer
+2.	Posting
+3.	Secondment
+4.	Acting Appointment
+5.	Reassignment
+6.	Redeployment
+7.	Promotion
+8.	Demotion
+9.	Interdepartmental Movement
+10.	Inter-MDA Movement
+11.	Return from Secondment
+12.	Temporary Assignment
+Each movement record must contain:
+•	Movement Reference Number
+•	Staff ID
+•	Employee Name
+•	Movement Type
+•	Previous MDA
+•	New MDA
+•	Previous Department
+•	New Department
+•	Previous Unit
+•	New Unit
+•	Previous Position
+•	New Position
+•	Previous Grade
+•	New Grade
+•	Effective Date
+•	Approval Date
+•	Movement Reason
+•	Approved By
+•	Supporting Document
+•	Remarks
+•	Movement Status
+Movement workflow:
+Draft → Submitted → Under Review → Approved → Implemented.
+Only authorized users should approve and implement movements.
+IMPORTANT BUSINESS RULE:
+When a movement is approved and implemented:
+1.	Update the employee's current department.
+2.	Update the employee's current MDA where applicable.
+3.	Update the employee's current position.
+4.	Update the employee's grade where applicable.
+5.	Preserve the previous employment information.
+6.	Create a permanent movement history record.
+7.	Record the effective date.
+8.	Record the approving officer.
+9.	Maintain an audit trail.
+Never overwrite historical employee records.
+Provide an employee movement history screen showing every movement chronologically.
+Allow users to view the employee's previous and current postings.
+7. PROMOTION AND CAREER PROGRESSION
+Develop a promotion management module.
+Features:
+•	Promotion Eligibility Tracking
+•	Promotion Recommendations
+•	Promotion Applications
+•	Promotion Approval Workflow
+•	Grade Progression
+•	Salary Level Progression
+•	Promotion Effective Dates
+•	Promotion History
+•	Promotion Letters
+Allow HR administrators to identify employees who have completed the required number of years in their current grade.
+Promotion eligibility rules must be configurable.
+Do not automatically promote employees simply because they meet a service requirement.
+Require authorized approval before updating an employee's grade.
+Generate promotion reports.
+8. RECRUITMENT AND APPOINTMENT
+Develop a recruitment module.
+Features:
+•	Vacancy Management
+•	Establishment Requirements
+•	Recruitment Planning
+•	Applicant Records
+•	Application Tracking
+•	Interview Scheduling
+•	Interview Results
+•	Selection Recommendations
+•	Appointment Processing
+•	Assumption of Duty
+•	Probation Management
+•	Confirmation of Appointment
+Successful applicants should be converted into employee records without entering their information twice.
+Generate appointment letters and recruitment reports.
+9. LEAVE MANAGEMENT
+Develop a complete leave management system.
+Leave categories:
+•	Annual Leave
+•	Sick Leave
+•	Maternity Leave
+•	Paternity Leave
+•	Study Leave
+•	Casual Leave
+•	Compassionate Leave
+•	Examination Leave
+•	Unpaid Leave
+•	Special Leave
+Features:
+•	Leave Entitlement Configuration
+•	Leave Application
+•	Leave Approval
+•	Leave Balance Calculation
+•	Leave History
+•	Leave Calendar
+•	Leave Resumption
+•	Leave Cancellation
+•	Leave Reports
+Approval workflow:
+Employee Application → Supervisor Recommendation → HR Review → Final Approval.
+Allow administrators to configure leave entitlement according to institutional policies.
+Calculate leave balances automatically.
+10. ATTENDANCE MANAGEMENT
+Develop an attendance management module.
+Features:
+•	Daily Attendance
+•	Employee Check-In
+•	Employee Check-Out
+•	Absence Recording
+•	Late Arrival
+•	Early Departure
+•	Official Duty
+•	Attendance Summary
+•	Monthly Attendance Reports
+Support manual attendance entry and optional integration with biometric attendance devices in future versions.
+The system must work without internet access.
+11. TRAINING AND DEVELOPMENT
+Develop a training management module.
+Record:
+•	Training Title
+•	Training Category
+•	Training Institution
+•	Training Location
+•	Start Date
+•	End Date
+•	Training Cost
+•	Sponsored By
+•	Participating Employees
+•	Training Outcome
+•	Certificates Obtained
+Features:
+•	Training Needs Assessment
+•	Training Plans
+•	Training Nomination
+•	Training Approval
+•	Training Attendance
+•	Training History
+•	Training Budget
+•	Training Evaluation
+Provide employee training history and departmental training reports.
+12. PERFORMANCE MANAGEMENT
+Develop an employee performance management module.
+Features:
+•	Annual Performance Planning
+•	Performance Targets
+•	Key Performance Indicators
+•	Mid-Year Reviews
+•	Annual Appraisals
+•	Supervisor Assessment
+•	Employee Self-Assessment
+•	Performance Ratings
+•	Performance Improvement Plans
+•	Appraisal History
+Allow administrators to configure appraisal periods and performance rating scales.
+Generate performance reports by employee, department and grade.
+13. PAYROLL AND COMPENSATION
+Develop a configurable payroll and compensation module.
+Features:
+•	Basic Salary
+•	Salary Grade
+•	Salary Step
+•	Allowances
+•	Deductions
+•	Gross Salary
+•	Net Salary
+•	Salary History
+•	Payroll Period
+•	Payroll Reports
+Allow administrators to configure salary structures.
+Include configurable allowances and deductions.
+Do not hardcode salary amounts or statutory deductions.
+Support Ghana Cedi (GHS) as the default currency.
+Keep payroll calculations separate from the employee's employment history.
+14. RETIREMENT AND SEPARATION
+Develop an employee separation management module.
+Categories:
+•	Retirement
+•	Voluntary Resignation
+•	Termination
+•	Dismissal
+•	Death
+•	Contract Expiry
+•	Other Separation
+Features:
+•	Retirement Date Calculation
+•	Retirement Eligibility
+•	Retirement Notifications
+•	Separation Approval
+•	Clearance Processing
+•	Outstanding Leave
+•	Employee Exit Documentation
+•	Final Employment Status
+Generate reports showing employees approaching retirement.
+Allow configurable retirement eligibility rules based on applicable institutional policies.
+15. DISCIPLINARY MANAGEMENT
+Record disciplinary matters.
+Fields:
+•	Employee
+•	Case Reference
+•	Incident Date
+•	Nature of Offence
+•	Allegation
+•	Investigation Details
+•	Disciplinary Committee
+•	Hearing Date
+•	Outcome
+•	Sanction
+•	Decision Date
+•	Supporting Documents
+•	Case Status
+Restrict access to authorized officers.
+Maintain confidentiality and a complete audit history.
+16. ESTABLISHMENT MANAGEMENT
+Develop an establishment control module.
+The system must track approved staffing positions against occupied positions.
+Record:
+•	Establishment Position
+•	Position Code
+•	Department
+•	Approved Grade
+•	Approved Number of Positions
+•	Occupied Positions
+•	Vacant Positions
+•	Employee Assigned
+•	Position Status
+Generate:
+•	Establishment Register
+•	Staff Strength Report
+•	Vacancy Report
+•	Overstaffing Report
+•	Understaffing Report
+•	Grade Distribution Report
+17. DASHBOARD AND ANALYTICS
+Create a modern executive dashboard.
+Display:
+•	Total Number of Employees
+•	Active Employees
+•	Male Employees
+•	Female Employees
+•	Employees by Department
+•	Employees by Grade
+•	Employees by Age Group
+•	Employees by Employment Category
+•	Employees Approaching Retirement
+•	Employees Due for Promotion Review
+•	Employees on Leave
+•	New Appointments
+•	Staff Transfers
+•	Departmental Vacancies
+•	Staff Separations
+Include:
+•	Interactive charts
+•	Summary cards
+•	Departmental comparisons
+•	Staff distribution graphs
+•	Movement statistics
+•	Recruitment statistics
+•	Retirement statistics
+Allow users to filter the dashboard by:
+•	MDA
+•	Department
+•	Directorate
+•	Grade
+•	Gender
+•	Employment Status
+•	Date Range
+All dashboard information must come from actual database records.
+18. REPORTS AND DOCUMENT GENERATION
+Develop a comprehensive reporting engine.
+Reports must include:
+1.	Complete Staff Register
+2.	Staff Nominal Roll
+3.	Departmental Staff Register
+4.	Staff by Grade
+5.	Staff by Gender
+6.	Staff by Age Group
+7.	Staff by Qualification
+8.	Staff by MDA
+9.	Staff Movement History
+10.	Promotion History
+11.	Recruitment Report
+12.	Retirement Forecast
+13.	Leave Register
+14.	Training Register
+15.	Performance Appraisal Report
+16.	Payroll Summary
+17.	Establishment Register
+18.	Vacancy Report
+19.	Staff Separation Report
+20.	Employee Personal History Report
+Provide report filtering by date, department, MDA, grade and employee status.
+Export reports to:
+•	PDF
+•	Microsoft Excel
+•	CSV
+•	Print
+Include institutional name, report title, reporting period, generation date and page numbers.
+19. USER MANAGEMENT AND SECURITY
+Implement role-based access control.
+User roles:
+•	System Administrator
+•	HR Director
+•	HR Manager
+•	HR Officer
+•	Department Head
+•	Finance Officer
+•	Records Officer
+•	Read-Only User
+Allow administrators to create customized roles.
+Permissions must be configurable for:
+•	Viewing Records
+•	Adding Records
+•	Editing Records
+•	Deleting Records
+•	Approving Movements
+•	Approving Promotions
+•	Managing Payroll
+•	Viewing Confidential Records
+•	Generating Reports
+•	Managing Users
+•	Managing System Settings
+Security requirements:
+1.	Secure password hashing.
+2.	User authentication.
+3.	Automatic session timeout.
+4.	Failed login tracking.
+5.	Audit logging.
+6.	Role-based permissions.
+7.	Restricted access to sensitive employee records.
+8.	Database backup protection.
+9.	Confirmation before destructive operations.
+Never store passwords in plain text.
+Maintain an audit trail for important operations.
+20. AUDIT TRAIL
+Every important system activity must be recorded.
+Capture:
+•	User
+•	Activity
+•	Module
+•	Record ID
+•	Previous Value
+•	New Value
+•	Date
+•	Time
+•	Computer Name
+Track:
+•	New employee creation
+•	Employee information changes
+•	Department changes
+•	Staff movements
+•	Promotions
+•	Leave approvals
+•	Payroll changes
+•	Document uploads
+•	User account changes
+•	Record deletions
+Audit records must not be editable by ordinary users.
+21. BACKUP AND RESTORE
+Develop a comprehensive backup module.
+Features:
+•	Manual Backup
+•	Automatic Scheduled Backup
+•	Database Restore
+•	Backup History
+•	Backup Location Configuration
+•	Backup Verification
+Allow users to back up to:
+•	Local Computer
+•	External Hard Drive
+•	USB Drive
+•	Network Drive
+Provide options for daily, weekly and monthly backups.
+Before restoring a backup, create a backup of the existing database.
+Never overwrite the existing database without confirmation.
+22. DATABASE DESIGN
+Use SQLite as the local database.
+Create a properly normalized relational database.
+Create appropriate tables for:
+•	Employees
+•	EmployeePersonalInformation
+•	EmployeeQualifications
+•	EmployeeProfessionalMemberships
+•	EmployeeDocuments
+•	EmploymentHistory
+•	MDAs
+•	Departments
+•	Directorates
+•	Units
+•	EstablishmentPositions
+•	StaffMovements
+•	Promotions
+•	Recruitment
+•	LeaveApplications
+•	LeaveBalances
+•	Attendance
+•	Training
+•	PerformanceAppraisals
+•	Payroll
+•	SalaryStructures
+•	DisciplinaryCases
+•	EmployeeSeparations
+•	Users
+•	Roles
+•	Permissions
+•	AuditLogs
+•	SystemSettings
+•	BackupHistory
+Database requirements:
+1.	Use primary keys and foreign keys.
+2.	Add appropriate indexes.
+3.	Enforce unique Staff IDs.
+4.	Use transactions for important operations.
+5.	Implement database migrations.
+6.	Validate all records before saving.
+7.	Prevent orphaned records.
+8.	Support database integrity checks.
+Use appropriate date and decimal data types.
+Do not store calculated values unnecessarily when they can be reliably calculated from historical records.
+23. USER INTERFACE AND DESIGN
+Create a modern professional enterprise desktop interface.
+Design inspiration:
+•	Microsoft Fluent Design
+•	Modern Windows 11 Applications
+•	Enterprise HR Management Software
+Interface requirements:
+Main Navigation
+Use a left-hand navigation sidebar containing:
+•	Dashboard
+•	Staff Management
+•	Organization Structure
+•	Staff Movements
+•	Promotions
+•	Recruitment
+•	Leave Management
+•	Attendance
+•	Training
+•	Performance
+•	Payroll
+•	Retirement
+•	Establishment
+•	Reports
+•	User Management
+•	Settings
+Main Dashboard
+Display summary cards and interactive charts.
+Employee Profile
+Use a tabbed employee profile layout:
+•	Overview
+•	Personal Details
+•	Employment Details
+•	Qualifications
+•	Professional Memberships
+•	Department History
+•	Movement History
+•	Promotion History
+•	Leave History
+•	Training History
+•	Performance History
+•	Documents
+Design Standards
+•	Clean professional interface.
+•	Consistent typography.
+•	Proper spacing.
+•	Responsive window layouts.
+•	Searchable data grids.
+•	Advanced filtering.
+•	Pagination.
+•	Sorting.
+•	Clear validation messages.
+•	Confirmation dialogs.
+•	Loading indicators.
+•	Consistent notification messages.
+•	Light and dark themes.
+Use a professional institutional colour scheme.
+Avoid cluttered screens.
+Make the application suitable for daily use by HR professionals.
+24. SYSTEM CONFIGURATION
+Create an administrative configuration module.
+Allow administrators to configure:
+•	Institutional Name
+•	Institutional Logo
+•	MDA List
+•	Department List
+•	Grade Structure
+•	Salary Structure
+•	Employment Categories
+•	Employment Types
+•	Leave Categories
+•	Leave Entitlements
+•	Movement Categories
+•	Promotion Rules
+•	Retirement Rules
+•	Performance Rating Scales
+•	Document Categories
+•	Reporting Preferences
+•	Backup Settings
+The system must support future institutional customization without changing source code.
+25. BUSINESS RULES AND DATA VALIDATION
+Implement strict business rules.
+Examples:
+1.	Every employee must have a unique Staff ID.
+2.	An employee must have a valid date of birth.
+3.	Employment dates must be logically consistent.
+4.	A movement must have an effective date.
+5.	A movement must be approved before implementation.
+6.	Historical movements must never be overwritten.
+7.	An employee's current department must reflect the latest implemented movement.
+8.	Promotion must require authorized approval.
+9.	Leave balances must be calculated accurately.
+10.	Employees who have separated must not appear as active employees.
+11.	Employee records must not be permanently deleted when historical transactions exist.
+12.	All important changes must be recorded in the audit trail.
+Provide configurable validation rules where institutional policies differ.
+26. OFFLINE OPERATION
+The application must operate completely offline.
+Do not require:
+•	Internet connection
+•	Cloud database
+•	Online authentication
+•	Online subscription
+•	External application server
+All employee records must be stored locally.
+All reports must be generated locally.
+All application modules must remain functional without internet connectivity.
+Do not introduce mandatory Google API or Gemini API dependencies into the finished application.
+27. SOFTWARE QUALITY AND TESTING
+Implement proper software testing.
+Test:
+•	Employee creation
+•	Employee editing
+•	Employee searching
+•	Employee movement
+•	Movement approval
+•	Promotion processing
+•	Department assignment
+•	Leave calculations
+•	Retirement calculations
+•	Report generation
+•	Excel export
+•	PDF export
+•	Database backup
+•	Database restoration
+•	User permissions
+•	Audit logging
+Provide automated unit tests and integration tests.
+Fix all build errors before considering the application complete.
+Do not use mock data as a replacement for actual database functionality.
+Include optional demonstration data that administrators can remove.
+28. INSTALLATION AND DISTRIBUTION
+Prepare the application for distribution.
+Generate:
+1.	x86 Windows Installer.
+2.	x64 Windows Installer.
+3.	Application executable.
+4.	Local SQLite database initialization.
+5.	Database migration scripts.
+6.	Application icon.
+7.	Desktop shortcut.
+8.	Start Menu shortcut.
+9.	Uninstaller.
+10.	Installation documentation.
+11.	User manual.
+12.	Backup and restore instructions.
+The installer must:
+•	Detect the target architecture.
+•	Install the correct application build.
+•	Include all required runtime dependencies.
+•	Create the required application directories.
+•	Initialize the database on first launch.
+•	Preserve user data during upgrades.
+•	Provide a clean uninstall process.
+Keep user data separate from application installation files.
+Store the database and documents in an appropriate Windows application data directory.
+Do not delete employee data during application upgrades or ordinary uninstallation.
+29. DEVELOPMENT APPROACH
+Develop this application in clearly defined phases.
+Do not attempt to generate the entire application in one step.
+PHASE 1: Foundation
+•	Project architecture
+•	Database design
+•	Application shell
+•	Navigation
+•	Login
+•	User management
+•	Dashboard
+PHASE 2: Core HR
+•	Employee management
+•	Qualifications
+•	Employee documents
+•	Department management
+•	Organizational structure
+PHASE 3: Staff Administration
+•	Staff movements
+•	Promotions
+•	Recruitment
+•	Establishment management
+•	Employment history
+PHASE 4: Employee Services
+•	Leave management
+•	Attendance
+•	Training
+•	Performance management
+PHASE 5: Advanced HR
+•	Payroll
+•	Retirement
+•	Separation
+•	Disciplinary management
+PHASE 6: Reporting and Security
+•	Reports
+•	Analytics
+•	Audit trail
+•	Backup and restore
+•	Access control
+PHASE 7: Deployment
+•	x86 publishing
+•	x64 publishing
+•	Offline installer
+•	Installation testing
+•	Final quality assurance
+At the end of each phase:
+1.	Review the architecture.
+2.	Check database relationships.
+3.	Compile the application.
+4.	Run relevant tests.
+5.	Fix errors.
+6.	Verify that existing functionality still works.
+7.	Document completed features.
+Do not introduce breaking changes to previously completed modules.
+30. FINAL DELIVERABLE
+The final deliverable must be a fully functional Human Resource Management Information System for Windows.
+It must include:
+•	Complete source code.
+•	Working Windows desktop application.
+•	SQLite database.
+•	All requested HR modules.
+•	Functional employee management.
+•	Complete staff movement history.
+•	Departmental management.
+•	Reporting and analytics.
+•	User authentication.
+•	Role-based permissions.
+•	Audit trail.
+•	Backup and restore.
+•	Offline operation.
+•	x86 installer.
+•	x64 installer.
+•	User documentation.
+IMPORTANT FINAL INSTRUCTION:
+Prioritize data integrity, historical accuracy, security and reliability.
+The employee database and staff movement history are the foundation of this system.
+Build the application as a professional enterprise HR platform rather than a basic employee registration application.
+Every module must be connected to the central employee database.
+Every important transaction must preserve historical information.
+Start by producing the detailed software requirements specification, database entity relationship design and application architecture.
+After presenting these, begin implementation phase by phase.
+Do not stop at producing mockups or sample screens.
+Build working functionality and verify it through testing.
+________________________________________
+3. Additional Features I Recommend
+There are some important features I would add to make this system more useful for an MDA.
+A. Staff Movement Tracking and Career History
+This should be one of the strongest features.
+For example:
+An employee joins an MDA as an Administrative Assistant.
+Over the years, the employee experiences:
+Effective Date	MDA	Department	Position	Grade
+2015	MDA A	Administration	Assistant	14
+2018	MDA A	Finance	Senior Assistant	15
+2021	MDA B	Administration	Principal Assistant	16
+2024	MDA B	Human Resource	Principal Officer	17
+The system should maintain all these records.
+When you open the employee's profile, you should see the entire career history.
+The current employment details should always reflect the latest approved and implemented movement.
+B. Staff Establishment and Vacancy Management
+This is important for HR planning.
+For example:
+Department	Approved Positions	Occupied	Vacant
+Administration	50	42	8
+Finance	30	25	5
+Human Resource	20	18	2
+Procurement	15	12	3
+This allows HR to identify staffing shortages and excess staffing.
+C. Retirement Forecast
+The system should automatically identify:
+•	Employees retiring within 1 year.
+•	Employees retiring within 2 years.
+•	Employees retiring within 3 years.
+•	Employees who have reached retirement age.
+•	Employees whose retirement documentation is outstanding.
+This will help with succession planning.
+D. Advanced Staff Search
+I strongly recommend a search facility that allows you to search using multiple criteria.
+For example:
+Find all employees who:
+•	Are between 40 and 50 years old.
+•	Hold a Master's Degree.
+•	Are on Grade 17.
+•	Have spent at least 5 years in their current position.
+•	Work within a particular MDA.
+The system should return the matching employees and allow Excel export.
+________________________________________
+4. Important Technical Considerations
+There is one issue I want you to consider carefully.
+You requested both 32-bit and 64-bit compatibility.
+I recommend producing two separate installers rather than trying to create one installer for both architectures.
+Requirement	x86	x64
+Windows 32-bit	Yes	No
+Windows 64-bit	Yes, where supported	Yes
+Installer	HRMIS-Setup-x86.exe	HRMIS-Setup-x64.exe
+Database	SQLite	SQLite
+Offline operation	Yes	Yes
+Also, keep the employee database outside the application installation folder.
+For example:
+C:\ProgramData\HRMIS\Data\
+This prevents application upgrades from accidentally destroying employee records.
+For an offline environment, I recommend SQLite for a single-computer installation. If several HR officers will access the same database simultaneously from different computers, you should consider a separate centralized database architecture.
