@@ -1,0 +1,6 @@
+{
+  "name": "Haros HRMIS - Human Resource Management Information Suite",
+  "description": "Enterprise-grade Human Resource Management Information System for Ministries, Departments, and Agencies (MDAs) featuring staff movement tracking, establishment control, offline standalone architecture, and comprehensive lifecycle management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
