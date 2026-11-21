@@ -5,6 +5,9 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    // Relative base so the bundle works when loaded via file:// inside the
+    // packaged Electron app (loadFile). '/' breaks asset resolution there.
+    base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

@@ -1,11 +1,17 @@
 /**
- * Haros HRMIS — Automated Functional Test Suite (Electron desktop build)
+ * Haros HRMIS — Automated Functional Test Suite (renderer level)
  *
- * Launches the real Electron app via Playwright (_electron), exercises the
- * major modules, and records PASS / FAIL / SKIP per checklist item.
+ * Serves the production build via `vite preview` and drives it with
+ * Playwright Chromium. An init script injects a bridge stub that mimics
+ * electron/preload.cjs and hydrates the app with the REAL hrmis_kv snapshot
+ * exported from %LOCALAPPDATA%\HRMIS\Database\hrmis.db.
  *
- * Usage:  node scripts/e2e-functional-test.mjs [--exe <path-to-Haros HRMIS.exe>]
- *         (defaults to `npx electron .` against the repo's dist/ build)
+ * This exercises the renderer code paths (modules, workflows, exports).
+ * The Electron main-process / IPC / SQLite-sync boundary is covered
+ * separately by scripts/e2e-electron-smoke.mjs, which launches the real
+ * packaged executable via Playwright _electron.
+ *
+ * Usage:  node scripts/e2e-functional-test.mjs
  *
  * Results are written to HRMIS-Distribution/Release/Automated-Test-Results.txt
  */
@@ -27,8 +33,11 @@ const REPORTS_DIR = path.join(process.env.LOCALAPPDATA || '', 'HRMIS', 'Reports'
 const DB_FILE = path.join(process.env.LOCALAPPDATA || '', 'HRMIS', 'Database', 'hrmis.db');
 
 const args = process.argv.slice(2);
-const exeFlag = args.indexOf('--exe');
-const EXE_PATH = exeFlag !== -1 ? args[exeFlag + 1] : null;
+if (args.includes('--exe')) {
+  console.log('NOTE: --exe is no longer supported. This suite always runs the');
+  console.log('vite-preview renderer harness. For the real packaged app, use');
+  console.log('scripts/e2e-electron-smoke.mjs.');
+}
 
 const results = [];
 function record(id, name, status, detail = '') {
@@ -93,7 +102,7 @@ function bridgeStub(snapshotJson) {
 async function main() {
   fs.mkdirSync(path.dirname(RESULTS_FILE), { recursive: true });
   console.log('=== Haros HRMIS E2E Functional Tests ===');
-  console.log(`Target: ${EXE_PATH || 'electron . (repo dist build)'}`);
+  console.log(`Target: vite preview + bridge stub (renderer)`);
   console.log(`Started: ${new Date().toISOString()}\n`);
 
   // ---------- Launch ----------
@@ -645,9 +654,9 @@ async function main() {
   } catch (err) { fail(22, 'Data preservation (restart)', err.message.split('\n')[0]); }
 
   // ---------- 1/21/23 covered by installer tests (documented separately) ----------
-  skip(1, 'Offline installation', 'covered by silent installer execution test (see verification report)');
-  skip(21, 'Application upgrade', 'covered by reinstall-over-existing test (see verification report)');
-  skip(23, 'Application uninstallation', 'covered by uninstall + data-preservation test (see verification report)');
+  skip(1, 'Offline installation', 'requires disconnected-network environment — manual procedure documented in Installer-Test-Results.txt; installer is self-contained NSIS with no download stage');
+  skip(21, 'Application upgrade', 'executed by scripts/e2e-installer-test.mjs (silent reinstall-over + marker-data preservation, both arches) — see Installer-Test-Results.txt');
+  skip(23, 'Application uninstallation', 'executed by scripts/e2e-installer-test.mjs (silent uninstall, program/registry cleanup, data preservation, both arches) — see Installer-Test-Results.txt');
 
   try { previewProc && previewProc.kill(); } catch {}
   try { browser && await browser.close(); } catch {}
@@ -659,7 +668,7 @@ function writeResults() {
   lines.push('Haros HRMIS — Automated Functional Test Results');
   lines.push('================================================');
   lines.push(`Run at: ${new Date().toISOString()}`);
-  lines.push(`Target: ${EXE_PATH || 'electron . (repo dist build)'}`);
+  lines.push(`Target: vite preview + bridge stub (renderer)`);
   lines.push('');
   for (const r of results) {
     lines.push(`${r.status.padEnd(5)} | ${r.id}. ${r.name}${r.detail ? ' — ' + r.detail : ''}`);

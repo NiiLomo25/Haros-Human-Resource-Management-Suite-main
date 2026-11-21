@@ -111,3 +111,62 @@ renderer, not the NSIS installer.
 5. Multi-user shared database (`%ProgramData%`) not implemented; each
    Windows user gets their own `%LOCALAPPDATA%\HRMIS` profile, matching
    the per-user deployment model.
+
+---
+
+## 4. Final verification addendum (2026-11-21, post-audit-fix build)
+
+Installers rebuilt after audit defects D1/D7/D8/D9 were fixed; PE payload
+architectures re-verified on the packaged binaries:
+
+| Artifact | Payload PE machine | Verdict |
+|---|---|---|
+| `release/win-unpacked/Haros HRMIS.exe` (→ HRMIS-Setup-x64.exe) | 0x8664 | genuine x64 |
+| `release/win-ia32-unpacked/Haros HRMIS.exe` (→ HRMIS-Setup-x86.exe) | 0x14C | genuine x86/ia32 |
+
+SHA-256 checksums (final artifacts in HRMIS-Distribution):
+
+| File | SHA-256 |
+|---|---|
+| `x64/HRMIS-Setup-x64.exe` (165,646,868 B) | `81e5d0dcb5542ed08a6cce950d44e8b685e488c6377100ca3ea8ac9d69289036` |
+| `x86/HRMIS-Setup-x86.exe` (152,727,437 B) | `b72e52cd40a4dbd7aff9704eb54693488fe2360419d634cb5031f65b67dbb75c` |
+
+Bundling verified: `resources/app.asar` contains `dist/`, `electron/`
+(main.cjs, preload.cjs, sql-wasm.wasm), `database/migrations/*.sql`, and
+all runtime node_modules — the app launches with no Node.js/npm/Python
+on the target machine (proven by installed-app launch tests).
+
+Executed installer-level verification (scripts/e2e-installer-test.mjs,
+per-arch runs, isolated dirs + disposable LOCALAPPDATA databases):
+
+- x64: silent install, launch + DB init, reinstall-over with data
+  preservation, silent uninstall with program/registry cleanup and
+  hrmis.db + Backups preservation — 9 PASS / 0 FAIL.
+- x86: identical coverage on the genuine ia32 payload — 9 PASS / 0 FAIL.
+- Offline installation: not auto-executable; installer is a single
+  self-contained NSIS package with no download stage. Manual procedure
+  documented in Installer-Test-Results.txt.
+
+Electron-shell verification (scripts/e2e-electron-smoke.mjs): 8 PASS / 0
+FAIL against the real Electron executable — UI renders under loadFile(),
+IPC bridge live, 50-key SQLite snapshot hydrates, kv round-trips, and
+the hardened open-path boundary rejects sibling-prefix escapes.
+
+Employee-data integrity: all destructive install/uninstall/upgrade tests
+used isolated LOCALAPPDATA test roots and disposable databases. The
+production database (%LOCALAPPDATA%\HRMIS\Database\hrmis.db, 651,264 B)
+and its 3 backups were never touched by tests; the file shows only normal
+growth from application use (626,688 → 651,264 B). No employee records
+were deleted or overwritten at any point.
+
+Known remaining items (not blockers):
+- 27 MB of stray dev artifacts (aistudio screenshots/PDFs) remain inside
+  the CURRENT installers (moved out of public/ for future builds —
+  cosmetic size/info-hygiene only).
+- Build-only deps (~81 MB unpacked) still ship inside installers
+  (audit defect D3 — deferred; requires dependency reshuffle + rebuild).
+- `sandbox: false` retained pending compatibility trial (D6 — deferred).
+- Notification history key not yet synced to SQLite (D5 — deferred).
+- Installers unsigned → SmartScreen warning expected (accepted).
+- npm audit: 8 findings (2 high, 6 moderate) — all documented in
+  Dependency-Security-Report.md; Electron upgrade path is ≤43.x.

@@ -509,24 +509,25 @@ function flushNow() {
 function getKvSnapshot() {
   const out = {};
   try {
-    const rows = stmts.kvAll.all();
-    // stmts.kvAll.all() with sql.js returns array of objects when column names known
-    if (Array.isArray(rows)) {
-      for (const row of rows) {
-        const key = row.key ?? row[0];
-        const value = row.value ?? row[1];
-        if (typeof key === 'string') out[key] = String(value);
-      }
-    } else {
-      // fallback: raw exec
+    // sql.js Statement API: step() + getAsObject() (no .all())
+    while (stmts.kvAll.step()) {
+      const row = stmts.kvAll.getAsObject();
+      if (typeof row.key === 'string') out[row.key] = String(row.value);
+    }
+    stmts.kvAll.reset();
+  } catch (err) {
+    try { stmts.kvAll.reset(); } catch {}
+    // fallback: raw exec
+    try {
       const res = db.exec('SELECT key, value FROM hrmis_kv ORDER BY key');
       if (res.length) {
-        const [keys, vals] = res[0].columns ? [res[0].values.map(r=>r[0]), res[0].values.map(r=>r[1])] : [[],[]];
-        keys.forEach((k, i) => { out[String(k)] = String(vals[i]); });
+        for (const r of res[0].values) {
+          if (typeof r[0] === 'string') out[r[0]] = String(r[1]);
+        }
       }
+    } catch (e2) {
+      log(`kv snapshot error: ${err.message}; fallback: ${e2.message}`);
     }
-  } catch (err) {
-    log(`kv snapshot error: ${err.message}`);
   }
   return out;
 }
@@ -658,10 +659,19 @@ function registerIpc() {
   ipcMain.handle('hrmis:open-path', async (_e, targetPath) => {
     try {
       const p = String(targetPath || '');
-      // Only allow opening paths inside the HRMIS data root (or registered dirs)
-      const root = getDataRoot();
-      if (!p || !path.resolve(p).toLowerCase().startsWith(path.resolve(root).toLowerCase())) {
+      // Only allow opening paths inside the HRMIS data root (or registered dirs).
+      // Boundary check: the resolved path must equal the root or sit strictly
+      // beneath it — a bare startsWith() would also accept sibling directories
+      // that merely share the "HRMIS" name prefix (e.g. "HRMIS-evil").
+      const root = path.resolve(getDataRoot()).toLowerCase();
+      const resolved = path.resolve(p).toLowerCase();
+      if (!p || (resolved !== root && !resolved.startsWith(root + path.sep))) {
         return { ok: false, error: 'Path outside HRMIS data directory' };
+      }
+      // shell.openPath never settles for nonexistent paths on Windows —
+      // fail fast instead of leaving the caller hanging.
+      if (!fs.existsSync(p)) {
+        return { ok: false, error: 'Path does not exist' };
       }
       const err = await shell.openPath(p);
       return { ok: !err, error: err || undefined };

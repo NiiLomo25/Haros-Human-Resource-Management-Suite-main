@@ -1,0 +1,15 @@
+Haros HRMIS — Electron Shell Smoke Test Results
+=================================================
+Run at: 2026-11-21T06:29:55.224Z
+Target: electron . (dev)
+
+PASS | executable found — electron.exe
+PASS | window loaded + UI rendered — title="Haros HRMIS - Human Resource Management Information Suite" rootKids=1 textChars=530 buttons=3
+PASS | hrmisHost.getDbStats IPC — kvCount=50 migrations=2
+PASS | hrmisHost.getDataPaths IPC — C:\Users\harry\AppData\Local\HRMIS\Database\hrmis.db
+PASS | hrmisDesktop.getInitialSnapshot (sync) — snapshot keys=50
+PASS | kv-set -> SQLite round-trip — write=sent readBack="probe-ok"
+PASS | open-path rejects sibling-prefix path — {"ok":false,"error":"Path outside HRMIS data directory"}
+PASS | open-path allows in-root path (guard pass) — {"ok":false,"error":"Path does not exist"}
+
+TOTAL: 8 | PASS: 8 | FAIL: 0

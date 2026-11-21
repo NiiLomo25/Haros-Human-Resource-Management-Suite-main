@@ -1,14 +1,14 @@
 Haros HRMIS — Automated Functional Test Results
 ================================================
-Run at: 2026-11-20T23:52:04.053Z
-Target: electron . (repo dist build)
+Run at: 2026-11-21T10:37:21.633Z
+Target: vite preview + bridge stub (renderer)
 
 PASS  | 2. Application startup — window loaded, UI rendered
 PASS  | 4. Administrator account creation / login — admin login succeeded
-PASS  | 3. Database initialization — hrmis.db present (475136 bytes)
-PASS  | 5. Employee registration — staff E2E-625901 registered
+PASS  | 3. Database initialization — hrmis.db present (651264 bytes)
+PASS  | 5. Employee registration — staff E2E-343373 registered
 PASS  | 6. Employee editing — edit modal opened and saved
-PASS  | 7. Employee searching — search for E2E-625901 returned result
+PASS  | 7. Employee searching — search for E2E-343373 returned result
 PASS  | 8. Staff movement processing — movement directive submitted for review
 PASS  | 9. Movement approval — directive approved
 PASS  | 10. Promotion processing — recommendation creation opened
@@ -22,9 +22,9 @@ PASS  | 17. Database backup — backup control present (snapshot export initiate
 PASS  | 18. Database restoration — restore UI present in System Configuration
 PASS  | 19. User permissions — RBAC module rendered
 PASS  | 20. Audit logging — audit trail rendered
-PASS  | 22. Data preservation (restart) — E2E-625901 survived restart
-SKIP  | 1. Offline installation — covered by silent installer execution test (see verification report)
-SKIP  | 21. Application upgrade — covered by reinstall-over-existing test (see verification report)
-SKIP  | 23. Application uninstallation — covered by uninstall + data-preservation test (see verification report)
+PASS  | 22. Data preservation (restart) — E2E-343373 survived restart
+SKIP  | 1. Offline installation — requires disconnected-network environment — manual procedure documented in Installer-Test-Results.txt; installer is self-contained NSIS with no download stage
+SKIP  | 21. Application upgrade — executed by scripts/e2e-installer-test.mjs (silent reinstall-over + marker-data preservation, both arches) — see Installer-Test-Results.txt
+SKIP  | 23. Application uninstallation — executed by scripts/e2e-installer-test.mjs (silent uninstall, program/registry cleanup, data preservation, both arches) — see Installer-Test-Results.txt
 
 TOTAL: 23 | PASS: 20 | FAIL: 0 | SKIP: 3

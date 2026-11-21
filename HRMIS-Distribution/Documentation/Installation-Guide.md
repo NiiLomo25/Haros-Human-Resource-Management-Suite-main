@@ -30,8 +30,8 @@ renamed copies of one another.
    this warning is expected.
 4. Follow the wizard:
    - Accept the license agreement.
-   - Choose the installation directory (default `C:\Program Files\HRMIS`;
-     32-bit installs may default to `C:\Program Files (x86)\HRMIS`).
+   - Choose the installation directory (default `C:\Program Files\Haros HRMIS`;
+     32-bit installs may default to `C:\Program Files (x86)\Haros HRMIS`).
    - Choose which shortcuts to create (Desktop and Start Menu are
      enabled by default).
 5. Click **Install** and wait for completion.
@@ -64,7 +64,7 @@ All user data lives under the installing user's profile:
     Attachments\           <- uploaded attachments
 ```
 
-Program files are installed under `C:\Program Files\HRMIS` and contain
+Program files are installed under `C:\Program Files\Haros HRMIS` and contain
 no user data.
 
 ## Offline Verification

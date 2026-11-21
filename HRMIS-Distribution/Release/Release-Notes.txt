@@ -36,8 +36,29 @@ Architecture support
 --------------------
 - HRMIS-Setup-x64.exe — genuine 64-bit build.
 - HRMIS-Setup-x86.exe — genuine 32-bit (ia32) build.
-  Electron 39 is the last branch supporting 32-bit Windows; the project
-  is pinned accordingly.
+  Electron is pinned to the 39.x branch; 32-bit Windows binaries are
+  published through Electron 43.x (removed in v44), so a future upgrade
+  must stay on 43.x or lower to keep genuine ia32 support.
+
+Post-audit hardening fixes (2026-11-21)
+---------------------------------------
+- Fixed SQLite snapshot hydration: getKvSnapshot() now uses the correct
+  sql.js Statement API (step/getAsObject). Previously the snapshot always
+  returned empty, so the packaged app never loaded hrmis_kv data into the
+  renderer on first launch of a fresh profile.
+- Fixed blank-window defect in packaged builds: Vite asset URLs are now
+  relative (base: './') so dist/ loads correctly under Electron loadFile().
+- Hardened hrmis:open-path: strict root+separator boundary check and a
+  fail-fast existsSync guard (shell.openPath never settles for missing
+  paths on Windows).
+- New automated coverage: scripts/e2e-electron-smoke.mjs exercises the
+  real Electron executable/IPC/SQLite path; scripts/e2e-installer-test.mjs
+  executes silent install, launch, upgrade-over-existing with data
+  preservation, and uninstall with program/registry cleanup and
+  hrmis.db + Backups preservation on both architectures.
+- Removed 27 MB of stray dev artifacts (public/assets/aistudio) from the
+  bundle starting with the next rebuild; current installers still contain
+  them (cosmetic size only, no functional impact).
 
 Requirements on target PCs: Windows 10/11, no internet, no Node.js,
 no development tools.

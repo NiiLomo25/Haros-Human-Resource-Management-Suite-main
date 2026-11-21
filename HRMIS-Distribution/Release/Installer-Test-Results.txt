@@ -1,0 +1,78 @@
+Haros HRMIS — Installer-Level E2E Test Results
+===============================================
+
+Suite: scripts/e2e-installer-test.mjs
+Installers under test: HRMIS-Distribution\x64\HRMIS-Setup-x64.exe,
+                       HRMIS-Distribution\x86\HRMIS-Setup-x86.exe
+(rebuilt 2026-11-21 with audit-defect fixes D1/D7/D8/D9)
+
+EXECUTED RUNS (each arch run to completion, UAC approved):
+
+--- x64 run (2026-11-21 ~08:07) ---
+PASS | x64-0. x64 installer present — HRMIS-Setup-x64.exe
+PASS | x64-1. x64 silent install — exit=0 exeExists=true
+PASS | x64-2. x64 launch + SQLite init — ui=true db=true ipc=true kv=35
+PASS | x64-21a. x64 reinstall over existing — exit=0
+PASS | x64-21b. x64 startup after upgrade + data preserved — ui=true db=true marker=true
+PASS | x64-23a. x64 silent uninstall removes program files — uninstaller=Uninstall Haros HRMIS.exe exit=0
+PASS | x64-23b. x64 registry (Add/Remove Programs) cleanup — no ARP entry for C:\HRMIS-Test\x64
+PASS | x64-23c. x64 uninstall preserves database + backups — db=true backupFile=true
+SKIP | 1. Offline installation — requires disconnected-network environment (see procedure below)
+PASS | restore. standard install restored (ARP entry)
+TOTAL: 10 | PASS: 9 | FAIL: 0 | SKIP: 1
+
+--- x86 run (2026-11-21 ~08:12) ---
+PASS | x86-0. x86 installer present — HRMIS-Setup-x86.exe
+PASS | x86-1. x86 silent install — exit=0 exeExists=true
+PASS | x86-2. x86 launch + SQLite init — ui=true db=true ipc=true kv=35
+PASS | x86-21a. x86 reinstall over existing — exit=0
+PASS | x86-21b. x86 startup after upgrade + data preserved — ui=true db=true marker=true
+PASS | x86-23a. x86 silent uninstall removes program files — uninstaller=Uninstall Haros HRMIS.exe exit=0
+PASS | x86-23b. x86 registry (Add/Remove Programs) cleanup — no ARP entry for C:\HRMIS-Test\x86 (1 other install entry remains — the legitimate Program Files x64 install)
+PASS | x86-23c. x86 uninstall preserves database + backups — db=true backupFile=true
+SKIP | 1. Offline installation — requires disconnected-network environment (see procedure below)
+PASS | restore. standard install restored (ARP entry)
+TOTAL: 10 | PASS: 9 | FAIL: 0 | SKIP: 1
+
+Combined coverage of the 23-item checklist:
+  Test 1  (Offline installation)  — NOT auto-executed; manual procedure below.
+  Test 21 (Application upgrade)   — EXECUTED on both arches: silent
+                                   reinstall-over-existing + marker-data
+                                   preservation verified via live SQLite
+                                   snapshot after upgrade.
+  Test 23 (Application uninstallation) — EXECUTED on both arches: silent
+                                   uninstall, program-file removal, ARP
+                                   registry cleanup, hrmis.db + Backups
+                                   preservation all verified.
+  Additionally verified per arch: silent install to isolated dir, app
+  launch, hrmis.db initialization, UI render, IPC bridge, kv round-trip.
+
+ISOLATION / SAFETY NOTES
+  - All app launches used a redirected LOCALAPPDATA (temp dir), so the
+    production %LOCALAPPDATA%\HRMIS database was never touched.
+    Verified intact after testing (626,688-byte hrmis.db + backups).
+  - Installs targeted C:\HRMIS-Test\<arch>; production Program Files
+    install was restored after each run.
+  - Test databases were disposable; marker key __installer_preserve_probe
+    lived only in the isolated test DBs.
+
+KNOWN TEST-HARNESS LIMITATION (not a product defect)
+  Running `--arch both` in a single invocation proved flaky in this
+  environment: each step spawns elevated NSIS processes via UAC consent,
+  and NSIS delegates real work to async temp-copy workers (Un_A.exe).
+  When UAC prompts are not promptly approved (or AV/disk slows the
+  workers), later steps can stall and cascade. Per-arch runs
+  (`--arch x64`, `--arch x86`) passed cleanly and repeatably, and a
+  manual uninstaller run removed a full install in <10 s. Recommendation:
+  run the suite per-arch, or run `--arch both` while actively approving
+  UAC prompts.
+
+OFFLINE INSTALLATION — manual verification procedure:
+  1. Disconnect the test machine from all networks (Wi-Fi/Ethernet).
+  2. Run HRMIS-Setup-x64.exe (or HRMIS-Setup-x86.exe); complete install.
+  3. Launch "Haros HRMIS"; verify the app opens and creates
+     %LOCALAPPDATA%\HRMIS\Database\hrmis.db.
+  4. Reconnect the network.
+  The installer is a single self-contained NSIS executable with no
+  download stage, so offline installation is expected to succeed; this
+  procedure confirms it on target/disconnected hardware.
