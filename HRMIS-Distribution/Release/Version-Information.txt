@@ -1,0 +1,31 @@
+Haros HRMIS — Version Information
+==================================
+
+Product Name:    Haros HRMIS
+Version:         2.5.0
+Build Date:      2026-11-20
+Platform:        Windows (x64 / x86)
+Framework:       Electron 39.8.10 + React 19 + Vite 8 + TypeScript
+Database:        SQLite (sql.js WASM)
+Data Directory:  %LOCALAPPDATA%\HRMIS
+
+Installers:
+  HRMIS-Distribution\x64\HRMIS-Setup-x64.exe
+  HRMIS-Distribution\x86\HRMIS-Setup-x86.exe
+
+Installed executable:  Haros HRMIS.exe
+Uninstaller:           Uninstall Haros HRMIS.exe (Start Menu / Settings)
+
+Data-removal utility:  scripts\remove-hrmis-data.ps1
+                        (HRMIS-Distribution\Database\remove-hrmis-data.ps1)
+
+Database migrations:   database\migrations\
+                        (copied to HRMIS-Distribution\Database\Migration-Scripts)
+
+Documentation:
+  HRMIS-Distribution\Documentation\Installation-Guide.md
+  HRMIS-Distribution\Documentation\User-Manual.md
+  HRMIS-Distribution\Documentation\Backup-and-Restore-Guide.md
+  HRMIS-Distribution\Release\Release-Notes.txt
+  HRMIS-Distribution\Release\Automated-Test-Results.txt
+  HRMIS-Distribution\Release\Deployment-Verification-Report.md

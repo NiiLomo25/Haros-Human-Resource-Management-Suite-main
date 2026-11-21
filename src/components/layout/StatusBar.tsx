@@ -35,12 +35,12 @@ export const StatusBar: React.FC<{ onOpenDatabaseInfo: () => void }> = ({ onOpen
             className="flex items-center space-x-1 text-slate-300 hover:text-cyan-400 transition-colors font-mono"
           >
             <Database className="w-3 h-3 text-cyan-400" />
-            <span>%ProgramData%\HarosHRMIS\Data\hrmis.db</span>
+            <span>%LOCALAPPDATA%\HRMIS\Database\hrmis.db</span>
           </button>
         ) : (
           <div className="flex items-center space-x-1 text-slate-400 font-mono">
             <Database className="w-3 h-3 text-cyan-400" />
-            <span>%ProgramData%\HarosHRMIS\Data\hrmis.db</span>
+            <span>%LOCALAPPDATA%\HRMIS\Database\hrmis.db</span>
           </div>
         )}
 

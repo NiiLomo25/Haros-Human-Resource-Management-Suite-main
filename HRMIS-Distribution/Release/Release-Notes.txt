@@ -1,0 +1,52 @@
+Haros HRMIS — Release Notes
+Version: 2.5.0 (Windows Desktop)
+Date: 2026-11-20
+
+NEW: Standalone offline Windows desktop distribution
+----------------------------------------------------
+- Electron 39 desktop shell (electron/main.cjs + preload.cjs) wrapping the
+  unchanged React/Vite application.
+- Embedded SQLite persistence (sql.js / SQLite WASM) at
+  %LOCALAPPDATA%\HRMIS\Database\hrmis.db with:
+  - Transactional schema migrations (database/migrations/*.sql) tracked in
+    hrmis_schema_migrations.
+  - Automatic pre-upgrade backups in Backups\.
+  - Atomic writes (tmp + rename), 1.5s debounce + 15s interval + quit flush.
+  - Corrupt-database quarantine to Backups\ — never silently overwritten.
+  - Legacy per-table schema importer: databases created by earlier builds
+    (t_haros_hrmis_v2_* tables + meta kv store) are migrated into hrmis_kv
+    with canonical camelCase key normalization, preserving all HR data.
+- Renderer persistence bridge (src/db/storage.ts): every localStorage
+  write is mirrored into SQLite; the SQLite snapshot is loaded back before
+  app boot. Browser/localStorage fallback is fully preserved.
+- Native bridge (window.hrmisHost / window.electronAPI / hrmisDesktop)
+  exposes machine identity (system UUID hardware ID), data paths, file
+  save dialog, and KV sync — satisfying the existing licensing /
+  computer-registration service contract.
+- Downloads (Excel/PDF/JSON exports) routed to %LOCALAPPDATA%\HRMIS\Reports.
+- Offline fonts: JetBrains Mono + Plus Jakarta Sans bundled locally;
+  Google Fonts CDN references removed.
+- electron-builder NSIS packaging: per-machine install, desktop + start
+  menu shortcuts, uninstaller that preserves all user data, and an NSIS
+  hook removing empty leftover install directories.
+- scripts/remove-hrmis-data.ps1: separate, confirmation-gated procedure
+  for complete local data removal.
+
+Architecture support
+--------------------
+- HRMIS-Setup-x64.exe — genuine 64-bit build.
+- HRMIS-Setup-x86.exe — genuine 32-bit (ia32) build.
+  Electron 39 is the last branch supporting 32-bit Windows; the project
+  is pinned accordingly.
+
+Requirements on target PCs: Windows 10/11, no internet, no Node.js,
+no development tools.
+
+Known limitations
+-----------------
+- Installers are unsigned: Windows SmartScreen will show a warning.
+- Workstations registered under a much older build may need one-time
+  re-activation by the activation administrator (hardware identity now
+  uses the system UUID, matching earlier builds).
+- Dev-dependency audit findings remain (build tooling only; see
+  Deployment-Verification-Report.md).

@@ -112,6 +112,60 @@ import { mapAuditEntryToNotification } from '../services/notifications/auditNoti
 
 const STORAGE_PREFIX = 'haros_hrmis_v2_';
 
+// Windows desktop bridge (Electron preload). When present, the renderer mirrors
+// every prefixed localStorage write into %LOCALAPPDATA%\HRMIS\Database\hrmis.db.
+const DESKTOP_BRIDGE =
+  typeof window !== 'undefined'
+    ? ((window as unknown as { hrmisDesktop?: {
+        getInitialSnapshot?: () => Record<string, string>;
+        syncSetItem?: (key: string, value: string) => void;
+        syncRemoveItem?: (key: string) => void;
+      } }).hrmisDesktop)
+    : undefined;
+
+function hydrateLocalStorageFromSnapshot(snapshot: Record<string, string>): void {
+  for (const [key, value] of Object.entries(snapshot)) {
+    if (typeof key === 'string' && typeof value === 'string') {
+      localStorage.setItem(key, value);
+    }
+  }
+}
+
+function loadDesktopSnapshotIntoLocalStorage(): void {
+  try {
+    const snapshot = DESKTOP_BRIDGE?.getInitialSnapshot?.() as
+      | Record<string, string>
+      | Promise<Record<string, string>>
+      | undefined;
+    if (!snapshot || typeof snapshot !== 'object') return;
+    if (typeof (snapshot as Promise<Record<string, string>>).then === 'function') {
+      void (snapshot as Promise<Record<string, string>>).then(hydrateLocalStorageFromSnapshot).catch(() => {});
+      return;
+    }
+    hydrateLocalStorageFromSnapshot(snapshot as Record<string, string>);
+  } catch {
+    // Fall back to localStorage-only operation if the desktop bridge is unavailable.
+  }
+}
+
+function syncDesktopSet(fullKey: string, exactValue: string): void {
+  try {
+    DESKTOP_BRIDGE?.syncSetItem?.(fullKey, exactValue);
+  } catch {
+    // Persistence is best-effort; localStorage remains the live store.
+  }
+}
+
+function syncDesktopRemove(fullKey: string): void {
+  try {
+    DESKTOP_BRIDGE?.syncRemoveItem?.(fullKey);
+  } catch {
+    // Ignore persistence failures during removal.
+  }
+}
+
+loadDesktopSnapshotIntoLocalStorage();
+
 export class DatabaseService {
   private static instance: DatabaseService;
   private notificationSuppressionDepth = 0;
@@ -243,7 +297,10 @@ export class DatabaseService {
   }
 
   private setItem<T>(key: string, value: T): void {
-    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
+    const fullKey = STORAGE_PREFIX + key;
+    const serialized = JSON.stringify(value);
+    localStorage.setItem(fullKey, serialized);
+    syncDesktopSet(fullKey, serialized);
   }
 
   private isFactoryWiped(): boolean {
@@ -430,7 +487,9 @@ export class DatabaseService {
   }
 
   public resetDatabase(): void {
-    localStorage.removeItem(STORAGE_PREFIX + 'factoryWiped');
+    const wipedKey = STORAGE_PREFIX + 'factoryWiped';
+    localStorage.removeItem(wipedKey);
+    syncDesktopRemove(wipedKey);
     this.setItem('mdas', INITIAL_MDAS);
     this.setItem('departments', INITIAL_DEPARTMENTS);
     this.setItem('units', INITIAL_UNITS);
@@ -511,8 +570,12 @@ export class DatabaseService {
       ) || INITIAL_USERS[0];
 
     // Mark factory-wiped before clearing tables so lazy getters never re-seed sample data
-    localStorage.setItem(STORAGE_PREFIX + 'factoryWiped', 'true');
-    localStorage.removeItem(STORAGE_PREFIX + 'pre_restore_safety_backup');
+    const wipedKey = STORAGE_PREFIX + 'factoryWiped';
+    const safetyKey = STORAGE_PREFIX + 'pre_restore_safety_backup';
+    localStorage.setItem(wipedKey, 'true');
+    syncDesktopSet(wipedKey, 'true');
+    localStorage.removeItem(safetyKey);
+    syncDesktopRemove(safetyKey);
 
     // Wipe all organizational, employee, operational, financial, audit, and backup records
     const emptyTables = [
@@ -4802,7 +4865,9 @@ export class DatabaseService {
 
       // Pre-restore safety backup: save current state first silently!
       const currentBackup = this.exportDatabaseSnapshot(true);
-      localStorage.setItem(STORAGE_PREFIX + 'pre_restore_safety_backup', currentBackup);
+      const safetyKey = STORAGE_PREFIX + 'pre_restore_safety_backup';
+      localStorage.setItem(safetyKey, currentBackup);
+      syncDesktopSet(safetyKey, currentBackup);
       this.recordBackupEntry('Pre-Restore Safety Snapshot', 'PRE_RESTORE_SAFETY_SNAPSHOT.json', currentBackup.length);
 
       let tablesRestored = 0;

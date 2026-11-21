@@ -9,3 +9,10 @@ coverage/
 # Agent / IDE workspace config
 .kilo/
 .kiro/
+
+# Build output & test artifacts
+/release/
+e2e-*.png
+e2e-*.txt
+HRMIS-Distribution/x86/
+HRMIS-Distribution/x64/

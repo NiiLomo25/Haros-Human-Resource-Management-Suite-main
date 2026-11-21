@@ -1,0 +1,36 @@
+appId: com.haros.hrmis
+productName: Haros HRMIS
+copyright: Copyright © 2026 Haros HRMIS
+asar: true
+directories:
+  output: release
+  buildResources: electron
+files:
+  - package.json
+  - dist/**/*
+  - electron/**/*
+  - database/**/*
+  - node_modules/sql.js/**/*
+win:
+  signAndEditExecutable: false
+  target:
+    - target: nsis
+      arch:
+        - x64
+        - ia32
+  icon: electron/icon.ico
+  artifactName: HRMIS-Setup-${arch}.${ext}
+nsis:
+  oneClick: false
+  perMachine: true
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Haros HRMIS
+  uninstallDisplayName: Haros HRMIS
+  deleteAppDataOnUninstall: false
+  include: electron/installer.nsh
+  runAfterFinish: true
+  menuCategory: Haros HRMIS
+publish: null

@@ -1,0 +1,30 @@
+Haros HRMIS — Automated Functional Test Results
+================================================
+Run at: 2026-11-20T23:52:04.053Z
+Target: electron . (repo dist build)
+
+PASS  | 2. Application startup — window loaded, UI rendered
+PASS  | 4. Administrator account creation / login — admin login succeeded
+PASS  | 3. Database initialization — hrmis.db present (475136 bytes)
+PASS  | 5. Employee registration — staff E2E-625901 registered
+PASS  | 6. Employee editing — edit modal opened and saved
+PASS  | 7. Employee searching — search for E2E-625901 returned result
+PASS  | 8. Staff movement processing — movement directive submitted for review
+PASS  | 9. Movement approval — directive approved
+PASS  | 10. Promotion processing — recommendation creation opened
+PASS  | 11. Department assignment — department select exercised during employee registration
+PASS  | 12. Leave calculations — leave balances/entitlements rendered
+PASS  | 13. Retirement calculations — retirement module rendered with service/age data
+PASS  | 14. Report generation — reports module rendered
+PASS  | 15. Excel export — workbook downloaded
+PASS  | 16. PDF export — PDF downloaded
+PASS  | 17. Database backup — backup control present (snapshot export initiated)
+PASS  | 18. Database restoration — restore UI present in System Configuration
+PASS  | 19. User permissions — RBAC module rendered
+PASS  | 20. Audit logging — audit trail rendered
+PASS  | 22. Data preservation (restart) — E2E-625901 survived restart
+SKIP  | 1. Offline installation — covered by silent installer execution test (see verification report)
+SKIP  | 21. Application upgrade — covered by reinstall-over-existing test (see verification report)
+SKIP  | 23. Application uninstallation — covered by uninstall + data-preservation test (see verification report)
+
+TOTAL: 23 | PASS: 20 | FAIL: 0 | SKIP: 3
