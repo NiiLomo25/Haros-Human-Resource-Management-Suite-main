@@ -1,10 +1,10 @@
 Haros HRMIS — Electron Shell Smoke Test Results
 =================================================
-Run at: 2026-11-21T06:29:55.224Z
-Target: electron . (dev)
+Run at: 2026-11-21T18:14:05.367Z
+Target: release/win-unpacked/Haros HRMIS.exe
 
-PASS | executable found — electron.exe
-PASS | window loaded + UI rendered — title="Haros HRMIS - Human Resource Management Information Suite" rootKids=1 textChars=530 buttons=3
+PASS | executable found — Haros HRMIS.exe
+PASS | window loaded + UI rendered — title="Haros HRMIS - Human Resource Management Information Suite" rootKids=1 textChars=302 buttons=3
 PASS | hrmisHost.getDbStats IPC — kvCount=50 migrations=2
 PASS | hrmisHost.getDataPaths IPC — C:\Users\harry\AppData\Local\HRMIS\Database\hrmis.db
 PASS | hrmisDesktop.getInitialSnapshot (sync) — snapshot keys=50

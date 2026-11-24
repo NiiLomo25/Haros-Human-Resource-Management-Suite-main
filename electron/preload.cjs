@@ -17,6 +17,10 @@ const hostApi = {
   getDbStats: () => ipcRenderer.invoke('hrmis:db-stats'),
   saveFile: (opts) => ipcRenderer.invoke('hrmis:save-file', opts),
   openPath: (p) => ipcRenderer.invoke('hrmis:open-path', p),
+  // Native printing: window.print() has no preview support in Electron —
+  // these route to the OS print dialog / PDF pipeline in the main process.
+  print: () => ipcRenderer.invoke('hrmis:print'),
+  printToPdf: (opts) => ipcRenderer.invoke('hrmis:print-to-pdf', opts),
 };
 
 const desktopApi = {

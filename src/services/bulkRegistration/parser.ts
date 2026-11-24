@@ -83,13 +83,16 @@ export function extractCellString(cell: ExcelJS.Cell): string {
   return String(val).trim();
 }
 
-const LEGACY_EMPLOYEE_HEADERS_28 = EMPLOYEE_HEADERS.filter((h) => h !== 'Ghana Card (NIA)');
+const LEGACY_EMPLOYEE_HEADERS_29 = EMPLOYEE_HEADERS.slice(0, 29);
+const LEGACY_EMPLOYEE_HEADERS_28 = LEGACY_EMPLOYEE_HEADERS_29.filter(
+  (h) => h !== 'Ghana Card (NIA)'
+);
 
 function validateSheetHeaders(
   sheet: ExcelJS.Worksheet,
   expectedHeaders: readonly string[],
   sheetLabel: string,
-  alternateHeaders?: readonly string[]
+  alternateHeadersList?: (readonly string[])[]
 ): readonly string[] {
   const row1 = sheet.getRow(1);
   const matchesHeaderList = (list: readonly string[]): number => {
@@ -103,8 +106,10 @@ function validateSheetHeaders(
   const primaryMismatch = matchesHeaderList(expectedHeaders);
   if (primaryMismatch === -1) return expectedHeaders;
 
-  if (alternateHeaders && matchesHeaderList(alternateHeaders) === -1) {
-    return alternateHeaders;
+  if (alternateHeadersList) {
+    for (const alt of alternateHeadersList) {
+      if (matchesHeaderList(alt) === -1) return alt;
+    }
   }
 
   const actual = extractCellString(row1.getCell(primaryMismatch + 1));
@@ -160,7 +165,7 @@ export async function parseBulkRegistrationFile(
     empSheet,
     EMPLOYEE_HEADERS,
     SHEET_NAMES.EMPLOYEES,
-    LEGACY_EMPLOYEE_HEADERS_28
+    [LEGACY_EMPLOYEE_HEADERS_29, LEGACY_EMPLOYEE_HEADERS_28]
   );
   validateSheetHeaders(capSheet, CAPABILITY_HEADERS, SHEET_NAMES.CAPABILITIES);
   validateSheetHeaders(skillSheet, SKILL_HEADERS, SHEET_NAMES.SKILLS);
@@ -218,6 +223,10 @@ export async function parseBulkRegistrationFile(
       qualificationTitle: rawValues['Qualification Title'] || '',
       qualificationInstitution: rawValues['Awarding Institution'] || '',
       yearObtained: rawValues['Year Obtained'] || '',
+      otherContact: rawValues['Other Contact(s)'] || '',
+      firstGrade: rawValues['First Grade (Entry Grade)'] || '',
+      currentPromotionDate: rawValues['Current Promotion Date (DD/MM/YYYY)'] || '',
+      previousPosting: rawValues['Previous Posting'] || '',
     });
 
     if (employees.length % 200 === 0) {

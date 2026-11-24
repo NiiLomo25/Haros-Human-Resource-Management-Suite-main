@@ -47,6 +47,7 @@ import { SearchableSelect } from '../common/SearchableSelect';
 import { SlideOverPanel } from '../common/SlideOverPanel';
 import { BrandCrest } from '../common/BrandCrest';
 import { useInstitutionInfo } from '../../hooks/useInstitutionInfo';
+import { printPage } from '../../services/printService';
 
 interface RetirementSeparationViewProps {
   onSelectEmployee?: (empId: number) => void;
@@ -922,7 +923,7 @@ export const RetirementSeparationView: React.FC<RetirementSeparationViewProps> =
                     'Sent official Civil Service Discharge Warrant to the system print dialog.',
                     { module: 'Retirement & Separation', actor: currentUser?.username }
                   );
-                  window.print();
+                  void printPage();
                 }}
                 className="flex items-center space-x-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded text-xs font-semibold"
               >

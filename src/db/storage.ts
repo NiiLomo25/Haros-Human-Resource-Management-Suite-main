@@ -1281,6 +1281,18 @@ export class DatabaseService {
           throw new Error('Validation Error: Confirmation Date cannot precede Date of First Appointment.');
         }
       }
+      if (data.employment.currentPromotionDate) {
+        const promoDate = new Date(data.employment.currentPromotionDate);
+        if (isNaN(promoDate.getTime())) {
+          throw new Error('Validation Error: Current Promotion Date must be a valid date.');
+        }
+        if (promoDate > new Date()) {
+          throw new Error('Validation Error: Current Promotion Date cannot be in the future.');
+        }
+        if (promoDate < apptDate) {
+          throw new Error('Validation Error: Current Promotion Date cannot precede Date of First Appointment.');
+        }
+      }
     }
 
     const newEmpId = employees.length > 0 ? Math.max(...employees.map((e) => e.id)) + 1 : 1;
@@ -1695,6 +1707,19 @@ export class DatabaseService {
     let oldEmployment: EmployeeEmploymentInfo | undefined;
 
     if (eIdx !== -1 && data.employment) {
+      if (data.employment.currentPromotionDate) {
+        const promoDate = new Date(data.employment.currentPromotionDate);
+        if (isNaN(promoDate.getTime())) {
+          throw new Error('Validation Error: Current Promotion Date must be a valid date.');
+        }
+        if (promoDate > new Date()) {
+          throw new Error('Validation Error: Current Promotion Date cannot be in the future.');
+        }
+        const firstAppt = new Date(data.employment.dateOfFirstAppointment || employmentList[eIdx].dateOfFirstAppointment);
+        if (!isNaN(firstAppt.getTime()) && promoDate < firstAppt) {
+          throw new Error('Validation Error: Current Promotion Date cannot precede Date of First Appointment.');
+        }
+      }
       oldEmployment = { ...employmentList[eIdx] };
       employmentList[eIdx] = { ...employmentList[eIdx], ...data.employment };
       this.setItem('employmentInfo', employmentList);
@@ -2334,6 +2359,32 @@ export class DatabaseService {
 
     const oldEmployment = { ...employmentList[empIdx] };
 
+    // Sync new employment fields: promotion date on grade elevation, entry grade
+    // capture, and previous posting on placement changes.
+    const gradeList = this.getGradeLevels();
+    const newGrade = gradeList.find((g) => g.id === mov.newGradeId);
+    const oldGrade = gradeList.find((g) => g.id === oldEmployment.currentGradeId);
+    const gradeElevated =
+      mov.newGradeId !== oldEmployment.currentGradeId &&
+      (newGrade?.hierarchyRank ?? 0) > (oldGrade?.hierarchyRank ?? 0);
+    const promotionLike =
+      gradeElevated || mov.movementType === 'Promotion' || mov.movementType === 'Acting Appointment';
+    const placementChanged =
+      mov.newMdaId !== oldEmployment.currentMdaId ||
+      mov.newDepartmentId !== oldEmployment.currentDepartmentId;
+    const postingMovement = [
+      'Transfer',
+      'Posting',
+      'Inter-MDA Movement',
+      'Interdepartmental Movement',
+      'Redeployment',
+      'Reassignment',
+    ].includes(mov.movementType);
+
+    const mdaFromName = this.getMdas().find((m) => m.id === mov.previousMdaId)?.name || '';
+    const deptFromName = this.getDepartments().find((d) => d.id === mov.previousDepartmentId)?.departmentName || '';
+    const previousPostingLabel = [deptFromName, mdaFromName].filter(Boolean).join(', ');
+
     // 1. Update current placement (Zero-Overwrite: updating current pointer while snapshotting history)
     employmentList[empIdx] = {
       ...employmentList[empIdx],
@@ -2347,6 +2398,12 @@ export class DatabaseService {
       dateAssignedCurrentRole: mov.effectiveDate,
       dateAssignedCurrentGrade:
         mov.newGradeId !== oldEmployment.currentGradeId ? mov.effectiveDate : oldEmployment.dateAssignedCurrentGrade,
+      currentPromotionDate: promotionLike ? mov.effectiveDate : oldEmployment.currentPromotionDate,
+      firstGradeId: oldEmployment.firstGradeId ?? (promotionLike ? (mov.previousGradeId ?? oldEmployment.currentGradeId) : undefined),
+      previousPosting:
+        postingMovement && placementChanged && previousPostingLabel
+          ? previousPostingLabel
+          : oldEmployment.previousPosting,
       currentEmploymentStatus:
         mov.movementType === 'Secondment'
           ? 'On Secondment'
@@ -2660,6 +2717,7 @@ export class DatabaseService {
               currentSalaryStep: options.salaryStep,
               dateAssignedCurrentRole: options.dateOfAssumptionOfDuty,
               dateAssignedCurrentGrade: options.dateOfAssumptionOfDuty,
+              firstGradeId: app.gradeId,
             },
             initialQualification: {
               qualificationLevel: app.cadreCategory === 'Professional' ? 'Bachelor Degree' : 'HND / Diploma',
@@ -2768,6 +2826,18 @@ export class DatabaseService {
     'Director of Procurement & Supply Chain',
   ];
 
+  /**
+   * Explicit progression ladders for the Supply & Stores Management cadre.
+   * A missing/undefined target means the grade is the top of its ladder (Peak Grade).
+   */
+  private static readonly STORE_SUPPLY_PROGRESSION: Readonly<Record<string, string | undefined>> = {
+    'store keeper': 'principal store keeper',
+    'principal store keeper': undefined,
+    'supply officer': 'senior supply officer',
+    'senior supply officer': 'principal supply officer',
+    'principal supply officer': undefined,
+  };
+
   private normalizeGradeHierarchyKey(name?: string): string {
     return (name || '')
       .trim()
@@ -2795,6 +2865,15 @@ export class DatabaseService {
       return grades.find((g) => this.normalizeGradeHierarchyKey(g.gradeName) === nextKey);
     }
 
+    // Supply & Stores Management cadre follows its own explicit ladders
+    const storeSupplyKey = this.normalizeGradeHierarchyKey(currentGrade?.gradeName || positionTitle);
+    if (storeSupplyKey in DatabaseService.STORE_SUPPLY_PROGRESSION) {
+      const nextName = DatabaseService.STORE_SUPPLY_PROGRESSION[storeSupplyKey];
+      if (!nextName) return undefined;
+      const nextKey = this.normalizeGradeHierarchyKey(nextName);
+      return grades.find((g) => this.normalizeGradeHierarchyKey(g.gradeName) === nextKey);
+    }
+
     if (!currentGrade) return undefined;
 
     // General Civil Service explicit Senior Management Officer sequence
@@ -2808,10 +2887,16 @@ export class DatabaseService {
 
     const currentRank = currentGrade.hierarchyRank || 1;
     const isProcGroup = currentGrade.occupationalGroup === 'Procurement & Supply Chain Management';
+    const isSupplyStoresGroup = currentGrade.occupationalGroup === 'Supply & Stores Management';
     const potentialNextGrades = grades
       .filter(
         (g) =>
           g.hierarchyRank > currentRank &&
+          // Supply & Stores grades only progress within their own cadre, and
+          // are never suggested as the next grade for other cadres
+          (isSupplyStoresGroup
+            ? g.occupationalGroup === 'Supply & Stores Management'
+            : g.occupationalGroup !== 'Supply & Stores Management') &&
           (isProcGroup || g.occupationalGroup !== 'Procurement & Supply Chain Management')
       )
       .sort((a, b) => a.hierarchyRank - b.hierarchyRank);
@@ -2881,6 +2966,11 @@ export class DatabaseService {
     const stdMinYears = this.getNumericSetting('PROMOTION_STANDARD_YEARS', 3);
     const seniorMinYears = this.getNumericSetting('PROMOTION_SENIOR_YEARS', 5);
 
+    // Next grade in approved progression hierarchy (used in rule summaries below)
+    const suggestedTargetGrade = this.getNextGradeInHierarchy(currentGrade, grades, empInfo?.currentPositionTitle);
+    const nextGradeLabel = suggestedTargetGrade?.gradeName || 'the next grade in the approved progression hierarchy';
+    const currentGradeLabel = currentGrade?.gradeName || 'the current grade';
+
     let requiredYears = stdMinYears;
     let progressionType: ProgressionType = 'Automatic Career Progression';
     let progressionMode: 'Automatic' | 'Competitive' = 'Automatic';
@@ -2888,20 +2978,25 @@ export class DatabaseService {
     let statutoryRuleSummary =
       `Statutory Career Progression: Eligible for automatic progression after completing ${stdMinYears} years of continuous service on current grade, subject to satisfactory performance, good conduct, and compliance with all organizational requirements.`;
 
-    if (isPrincipal) {
+    // Grades that explicitly declare Automatic progression (e.g. Principal Supply Officer)
+    // are not forced into the merit-based senior track by name alone.
+    const gradeExplicitlyAutomatic =
+      currentGrade?.progressionMode === 'Automatic' && !currentGrade?.isSeniorManagement;
+
+    if (isPrincipal && !gradeExplicitlyAutomatic) {
       requiredYears = seniorMinYears;
       progressionType = 'Competitive Senior Promotion';
       progressionMode = 'Competitive';
       isSeniorManagement = true;
       statutoryRuleSummary =
-        `Senior Management Promotion (Merit-Based): An employee must serve a minimum of ${seniorMinYears} years on the grade of Principal Officer before becoming eligible for promotion to Chief Officer. Promotion is non-automatic and based on merit and a competitive promotion process.`;
-    } else if (isChief) {
+        `Senior Management Promotion (Merit-Based): An employee must serve a minimum of ${seniorMinYears} years on the grade of ${currentGradeLabel} before becoming eligible for promotion to ${nextGradeLabel}. Promotion is non-automatic and based on merit and a competitive promotion process.`;
+    } else if (isChief && !gradeExplicitlyAutomatic) {
       requiredYears = seniorMinYears;
       progressionType = 'Competitive Senior Promotion';
       progressionMode = 'Competitive';
       isSeniorManagement = true;
       statutoryRuleSummary =
-        `Senior Management Promotion (Merit-Based): An employee must serve a minimum of ${seniorMinYears} years on the grade of Chief Officer before becoming eligible for promotion to Director. Promotion is non-automatic and based on merit and a competitive promotion process.`;
+        `Senior Management Promotion (Merit-Based): An employee must serve a minimum of ${seniorMinYears} years on the grade of ${currentGradeLabel} before becoming eligible for promotion to ${nextGradeLabel}. Promotion is non-automatic and based on merit and a competitive promotion process.`;
     } else if (currentGrade?.minYearsInGradeForPromotion) {
       requiredYears = currentGrade.minYearsInGradeForPromotion;
       if (currentGrade.progressionMode === 'Competitive' || currentGrade.isSeniorManagement) {
@@ -2959,9 +3054,6 @@ export class DatabaseService {
       activeSanctionDetails = `Active sanction: ${sanctionActive.sanctionRecommended || 'Sanction Pending'}`;
       blockerReasons.push(`Active disciplinary sanction on record (${sanctionActive.sanctionRecommended})`);
     }
-
-    // Next grade in approved progression hierarchy
-    const suggestedTargetGrade = this.getNextGradeInHierarchy(currentGrade, grades, empInfo?.currentPositionTitle);
 
     const isEligible = hasSufficientTimeInGrade && hasSatisfactoryPerformance && hasCleanConduct;
 

@@ -87,6 +87,7 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
       const dept = departments.find((d) => d.id === employment?.currentDepartmentId);
       const mda = mdas.find((m) => m.id === employment?.currentMdaId);
       const grade = gradeLevels.find((g) => g.id === employment?.currentGradeId);
+      const firstGrade = gradeLevels.find((g) => g.id === employment?.firstGradeId);
 
       const fullName = personal?.fullName || `${personal?.firstName || ''} ${personal?.surname || ''}`.trim() || 'Unnamed Officer';
 
@@ -97,6 +98,7 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
         dept,
         mda,
         grade,
+        firstGrade,
         fullName,
       };
     });
@@ -112,8 +114,12 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
         const matchesName = item.fullName.toLowerCase().includes(query);
         const matchesNin = item.personal?.nationalIdentificationNumber?.toLowerCase().includes(query) || false;
         const matchesPhone = item.personal?.telephoneNumber?.includes(query) || false;
+        const matchesOtherContacts =
+          item.personal?.otherContacts?.some((c) => c.toLowerCase().includes(query)) || false;
+        const matchesFirstGrade = item.firstGrade?.gradeName.toLowerCase().includes(query) || false;
+        const matchesPrevPosting = item.employment?.previousPosting?.toLowerCase().includes(query) || false;
         const matchesEmail = item.personal?.emailAddress?.toLowerCase().includes(query) || false;
-        if (!matchesStaffId && !matchesName && !matchesNin && !matchesPhone && !matchesEmail) {
+        if (!matchesStaffId && !matchesName && !matchesNin && !matchesPhone && !matchesOtherContacts && !matchesFirstGrade && !matchesPrevPosting && !matchesEmail) {
           return false;
         }
       }
@@ -192,6 +198,11 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
       'Date of First Appointment',
       'Statutory Retirement Date',
       'Status',
+      'Telephone',
+      'Other Contacts',
+      'First Grade',
+      'Current Promotion Date',
+      'Previous Posting',
     ];
 
     const rows = filteredStaff.map((s) => [
@@ -211,6 +222,11 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
       `"${s.employment?.dateOfFirstAppointment || ''}"`,
       `"${s.employment?.statutoryRetirementDate || ''}"`,
       `"${s.employment?.currentEmploymentStatus || 'Active'}"`,
+      `"${s.personal?.telephoneNumber || ''}"`,
+      `"${(s.personal?.otherContacts || []).join('; ')}"`,
+      `"${s.firstGrade?.gradeName || ''}"`,
+      `"${s.employment?.currentPromotionDate || ''}"`,
+      `"${s.employment?.previousPosting || ''}"`,
     ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
@@ -669,6 +685,14 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
                           <div className="flex items-center space-x-1 text-[11px]">
                             <Phone className="w-3 h-3 text-slate-400" />
                             <span>{pers.telephoneNumber}</span>
+                            {pers.otherContacts && pers.otherContacts.length > 0 && (
+                              <span
+                                className="px-1 py-0.5 rounded bg-slate-100 text-slate-600 text-[9px] font-bold"
+                                title={`Other contacts: ${pers.otherContacts.join(', ')}`}
+                              >
+                                +{pers.otherContacts.length}
+                              </span>
+                            )}
                           </div>
                         )}
                         {pers?.emailAddress && (

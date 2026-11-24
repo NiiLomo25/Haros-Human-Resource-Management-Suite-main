@@ -35,6 +35,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { SearchableSelect } from '../common/SearchableSelect';
 import { BrandCrest } from '../common/BrandCrest';
 import { useInstitutionInfo } from '../../hooks/useInstitutionInfo';
+import { printPage } from '../../services/printService';
 import {
   exportReportToCsv,
   exportReportToExcel,
@@ -421,6 +422,7 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
         const dept = departments.find((d) => d.id === employment?.currentDepartmentId);
         const mda = mdas.find((m) => m.id === employment?.currentMdaId);
         const grade = grades.find((g) => g.id === employment?.currentGradeId);
+        const firstGrade = grades.find((g) => g.id === employment?.firstGradeId);
         const age = personal?.dateOfBirth ? db.calculateAge(personal.dateOfBirth) : 0;
         const yrsService = employment?.dateOfFirstAppointment
           ? db.calculateTotalYearsOfService(employment.dateOfFirstAppointment)
@@ -457,6 +459,7 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
           dept,
           mda,
           grade,
+          firstGrade,
           age,
           yrsService,
           yrsGrade,
@@ -493,7 +496,11 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
           const matchPos = row.employment?.currentPositionTitle.toLowerCase().includes(q);
           const matchGrade = row.grade?.gradeName.toLowerCase().includes(q);
           const matchDept = row.dept?.departmentName.toLowerCase().includes(q);
-          if (!matchName && !matchStaffId && !matchPos && !matchGrade && !matchDept) return false;
+          const matchPhone = row.personal?.telephoneNumber?.toLowerCase().includes(q);
+          const matchOtherContacts = row.personal?.otherContacts?.some((c) => c.toLowerCase().includes(q));
+          const matchFirstGrade = row.firstGrade?.gradeName.toLowerCase().includes(q);
+          const matchPrevPosting = row.employment?.previousPosting?.toLowerCase().includes(q);
+          if (!matchName && !matchStaffId && !matchPos && !matchGrade && !matchDept && !matchPhone && !matchOtherContacts && !matchFirstGrade && !matchPrevPosting) return false;
         }
         return true;
       });
@@ -561,7 +568,7 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
             { label: 'Avg Service Tenure', value: list.length ? `${(list.reduce((s, e) => s + e.yrsService, 0) / list.length).toFixed(1)} Yrs` : '0.0 Yrs' },
           ],
           tabular: {
-            headers: ['Staff ID', 'Officer Full Name', 'Sex', 'MDA', 'Department', 'Substantive Position', 'Grade Title', 'Cadre', '1st Appt Date', 'Retirement Date', 'Status'],
+            headers: ['Staff ID', 'Officer Full Name', 'Sex', 'MDA', 'Department', 'Substantive Position', 'Grade Title', 'Cadre', '1st Appt Date', 'Retirement Date', 'Status', 'First Grade', 'Current Promotion Date', 'Previous Posting'],
             rows: list.map((e) => [
               e.emp.staffId,
               e.personal?.fullName || '',
@@ -574,6 +581,9 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
               e.employment?.dateOfFirstAppointment || '',
               e.employment?.statutoryRetirementDate || '',
               e.employment?.currentEmploymentStatus || '',
+              e.firstGrade?.gradeName || 'N/A',
+              e.employment?.currentPromotionDate || 'N/A',
+              e.employment?.previousPosting || 'N/A',
             ]),
           },
           rowEmployeeIds: list.map((e) => e.emp.id),
@@ -606,6 +616,10 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
               'Yrs in Current Ministry',
               'Capabilities / Skills',
               'Status',
+              'Other Contact(s)',
+              'First Grade',
+              'Current Promotion Date',
+              'Previous Posting',
             ],
             rows: list.map((e) => [
               e.emp.staffId,
@@ -620,6 +634,10 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
               `${e.yrsMinistry.toFixed(1)} yrs`,
               `${e.capabilities.length} Caps / ${e.skills.length} Skills`,
               e.employment?.currentEmploymentStatus || '',
+              (e.personal?.otherContacts || []).join('; ') || '',
+              e.firstGrade?.gradeName || 'N/A',
+              e.employment?.currentPromotionDate || 'N/A',
+              e.employment?.previousPosting || 'N/A',
             ]),
           },
           rowEmployeeIds: list.map((e) => e.emp.id),
@@ -736,6 +754,8 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
             progressionStream,
             hasGradeDate ? `${yrsInGrade.toFixed(1)} yrs` : 'N/A',
             nextGrade,
+            e.firstGrade?.gradeName || 'N/A',
+            e.employment?.currentPromotionDate || 'N/A',
           ];
         });
 
@@ -757,6 +777,8 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
               'Progression Stream',
               'Years in Current Grade',
               'Next Grade',
+              'First Grade',
+              'Current Promotion Date',
             ],
             rows,
             summaryRow: [
@@ -767,6 +789,8 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
               '',
               `${avgYears} yrs avg`,
               `${eligibleTenureCount} Due`,
+              '',
+              '',
             ],
           },
           rowEmployeeIds: list.map((e) => e.emp.id),
@@ -1123,7 +1147,7 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
           },
           secondaryTitle: 'Workforce Career Progression Eligibility Matrix (3-Yr Automatic / 5-Yr Competitive Merit)',
           secondaryTabular: {
-            headers: ['Staff ID', 'Officer Name', 'Department', 'Current Grade', 'Years in Grade', 'Min Req.', 'Progression Stream', 'SPAS Appraisal', 'Projected Next Grade', 'Eligibility Status'],
+            headers: ['Staff ID', 'Officer Name', 'Department', 'Current Grade', 'Years in Grade', 'Min Req.', 'Progression Stream', 'SPAS Appraisal', 'Projected Next Grade', 'Eligibility Status', 'First Grade', 'Current Promotion Date'],
             rows: eligList.map(({ row, evalRes }) => [
               row.emp.staffId,
               row.personal?.fullName || '',
@@ -1135,6 +1159,8 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
               `${evalRes.performanceScore}% (${evalRes.performanceRating})`,
               evalRes.suggestedTargetGrade ? evalRes.suggestedTargetGrade.gradeName : 'Peak Grade',
               evalRes.isEligible ? 'Eligible' : !evalRes.hasSufficientTimeInGrade ? 'Maturing' : 'Hold',
+              row.firstGrade?.gradeName || 'N/A',
+              row.employment?.currentPromotionDate || 'N/A',
             ]),
           },
         };
@@ -1831,6 +1857,7 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
     const dept = departments.find((d) => d.id === employment.currentDepartmentId);
     const unit = units.find((u) => u.id === employment.currentUnitId);
     const grade = grades.find((g) => g.id === employment.currentGradeId);
+    const firstGrade = grades.find((g) => g.id === employment.firstGradeId);
     const quals = db.getEmployeeQualifications(personalHistoryEmployeeId);
     const mems = db.getEmployeeMemberships(personalHistoryEmployeeId);
     const prior = db.getPriorEmploymentHistory(personalHistoryEmployeeId);
@@ -1854,6 +1881,7 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
           ['Date of Birth', `${personal.dateOfBirth} (Age ${db.calculateAge(personal.dateOfBirth)})`, 'Gender / Marital', `${personal.gender} • ${personal.maritalStatus}`],
           ['Ghana Card (NIA)', personal.nationalIdentificationNumber || 'N/A', 'Nationality', personal.nationality],
           ['Telephone', personal.telephoneNumber, 'Official Email', personal.emailAddress],
+          ['Other Contact(s)', (personal.otherContacts || []).join('; ') || 'N/A', 'Emergency Contact', `${personal.emergencyContactName} (${personal.emergencyContactPhone})`],
           ['Residential Address', personal.residentialAddress, 'Next of Kin', `${personal.nextOfKinName} (${personal.nextOfKinRelationship})`],
         ],
       },
@@ -1865,6 +1893,8 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
           ['Position Title', employment.currentPositionTitle, 'Grade Title', grade?.gradeName || ''],
           ['Cadre Category', employment.employeeCategory, 'Employment Type', employment.employmentType],
           ['1st Appointment Date', employment.dateOfFirstAppointment, 'Assumption of Duty', employment.dateOfAssumptionOfDuty],
+          ['First Grade (Entry)', firstGrade?.gradeName || 'N/A', 'Current Promotion Date', employment.currentPromotionDate || 'N/A'],
+          ['Date Assigned Grade', employment.dateAssignedCurrentGrade, 'Previous Posting', employment.previousPosting || 'N/A'],
           ['Statutory Retirement', employment.statutoryRetirementDate, 'Current Status', employment.currentEmploymentStatus],
         ],
       },
@@ -1967,7 +1997,7 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
 
   const handlePrint = () => {
     notificationServiceBridgePrint();
-    window.print();
+    void printPage();
   };
 
   const notificationServiceBridgePrint = () => {

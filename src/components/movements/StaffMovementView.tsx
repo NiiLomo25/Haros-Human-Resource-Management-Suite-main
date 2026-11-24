@@ -612,6 +612,11 @@ export const StaffMovementView: React.FC<StaffMovementViewProps> = ({ onSelectEm
                             <div className="text-[10px] text-slate-500">
                               Dept: {deptTo?.departmentName || 'Dept'}
                             </div>
+                            {db.getEmployeeEmploymentInfo(mov.employeeId)?.previousPosting && (
+                              <div className="text-[10px] text-slate-400 truncate max-w-[180px]" title={db.getEmployeeEmploymentInfo(mov.employeeId)?.previousPosting}>
+                                Prev: {db.getEmployeeEmploymentInfo(mov.employeeId)?.previousPosting}
+                              </div>
+                            )}
                           </td>
 
                           {/* Effective Date */}

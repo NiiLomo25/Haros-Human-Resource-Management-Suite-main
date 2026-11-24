@@ -923,6 +923,70 @@ export async function validateParsedWorkbook(
       }
     }
 
+    // 9b. Other Contact(s): split on comma, semicolon, slash, pipe or newline;
+    // each entry must be a valid Ghana number; duplicates removed.
+    const normOtherContacts: string[] = [];
+    const seenOtherContacts = new Set<string>();
+    if (row.otherContact.trim()) {
+      const tokens = row.otherContact.split(/[,;\/|\n]+/);
+      tokens.forEach((token) => {
+        const t = token.trim();
+        if (!t) return;
+        const parsedContact = normalizeGhanaPhone(t);
+        if (!parsedContact) {
+          addErr(
+            'Other Contact(s)',
+            `Invalid Other Contact number "${t}". Provide valid Ghana numbers separated by comma, semicolon, slash or new line.`
+          );
+          return;
+        }
+        if (!seenOtherContacts.has(parsedContact)) {
+          seenOtherContacts.add(parsedContact);
+          normOtherContacts.push(parsedContact);
+        }
+      });
+    }
+
+    // 9c. First Grade (Entry Grade): optional; must match an active grade scale
+    const firstGradeRaw = row.firstGrade.trim();
+    const firstGradeKey = firstGradeRaw.replace(/^[a-z0-9]+\s*-\s*/i, '').toLowerCase();
+    const matchedFirstGrade = firstGradeRaw
+      ? gradeByKey.get(firstGradeRaw.toLowerCase()) || gradeByKey.get(firstGradeKey)
+      : undefined;
+    if (firstGradeRaw && !matchedFirstGrade) {
+      addErr(
+        'First Grade (Entry Grade)',
+        `First Grade "${firstGradeRaw}" does not match any active Civil Service grade scale.`
+      );
+    }
+
+    // 9d. Current Promotion Date: optional; valid date, not future, not before First Appointment
+    let promoIso: string | undefined;
+    if (row.currentPromotionDate.trim()) {
+      const parsedPromo = parseCivilServiceDate(row.currentPromotionDate);
+      if (!parsedPromo) {
+        addErr(
+          'Current Promotion Date (DD/MM/YYYY)',
+          `Invalid Current Promotion Date "${row.currentPromotionDate}". Expected DD/MM/YYYY.`
+        );
+      } else {
+        const todayIso = new Date().toISOString().slice(0, 10);
+        if (parsedPromo > todayIso) {
+          addErr(
+            'Current Promotion Date (DD/MM/YYYY)',
+            'Current Promotion Date cannot be in the future.'
+          );
+        } else if (firstApptIso && parsedPromo < firstApptIso) {
+          addErr(
+            'Current Promotion Date (DD/MM/YYYY)',
+            'Current Promotion Date cannot be earlier than First Appointment date.'
+          );
+        } else {
+          promoIso = parsedPromo;
+        }
+      }
+    }
+
     // 10. Salary Level & Salary Step (1-10)
     let salaryLevel = matchedGrade ? matchedGrade.hierarchyRank : 1;
     if (row.salaryLevel.trim()) {
@@ -1121,6 +1185,7 @@ export async function validateParsedWorkbook(
           nextOfKinName: nokName,
           nextOfKinRelationship: row.nextOfKinRelationship.trim() || 'Spouse',
           nextOfKinPhone: normNokPhone || normPhone,
+          otherContacts: normOtherContacts.length > 0 ? normOtherContacts : undefined,
         },
         employment: {
           employeeCategory: category,
@@ -1138,7 +1203,10 @@ export async function validateParsedWorkbook(
           currentSalaryLevel: salaryLevel,
           currentSalaryStep: salaryStep,
           dateAssignedCurrentRole: assumptionIso,
-          dateAssignedCurrentGrade: firstApptIso,
+          dateAssignedCurrentGrade: promoIso || firstApptIso,
+          firstGradeId: matchedFirstGrade?.id,
+          currentPromotionDate: promoIso,
+          previousPosting: row.previousPosting.trim() || undefined,
           statutoryRetirementDate,
         },
         initialQualification: row.qualificationTitle.trim()

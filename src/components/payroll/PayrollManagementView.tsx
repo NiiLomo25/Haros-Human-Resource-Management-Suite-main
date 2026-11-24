@@ -51,6 +51,7 @@ import {
 } from '../../types';
 import { SearchableSelect } from '../common/SearchableSelect';
 import { SlideOverPanel } from '../common/SlideOverPanel';
+import { printPage } from '../../services/printService';
 
 interface PayrollManagementViewProps {
   onSelectEmployee?: (empId: number) => void;
@@ -971,7 +972,7 @@ export const PayrollManagementView: React.FC<PayrollManagementViewProps> = ({
                     `Prepared printable payslip for ${activePreviewPayslip.employeeName}.`,
                     { module: 'Payroll & Compensation', actor: currentUser?.username }
                   );
-                  window.print();
+                  void printPage();
                 }}
                 className="flex items-center space-x-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 rounded text-xs font-semibold"
               >

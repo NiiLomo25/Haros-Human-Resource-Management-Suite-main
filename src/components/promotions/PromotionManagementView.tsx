@@ -90,6 +90,7 @@ export const PromotionManagementView: React.FC<PromotionManagementViewProps> = (
         if (!empInfo || empInfo.currentEmploymentStatus !== 'Active') return null;
 
         const currentGrade = gradeLevels.find((g) => g.id === empInfo.currentGradeId);
+        const firstGrade = gradeLevels.find((g) => g.id === empInfo.firstGradeId);
         const dept = departments.find((d) => d.id === empInfo.currentDepartmentId);
         const mda = mdas.find((m) => m.id === empInfo.currentMdaId);
 
@@ -110,6 +111,7 @@ export const PromotionManagementView: React.FC<PromotionManagementViewProps> = (
           personal: pers,
           employment: empInfo,
           currentGrade,
+          firstGrade,
           nextGrade,
           evaluation,
           yearsInGrade: evaluation.yearsInGrade,
@@ -153,6 +155,7 @@ export const PromotionManagementView: React.FC<PromotionManagementViewProps> = (
       const pers = db.getEmployeePersonalInfo(rec.employeeId);
       const empInfo = db.getEmployeeEmploymentInfo(rec.employeeId);
       const currentGrade = gradeLevels.find((g) => g.id === rec.currentGradeId);
+      const firstGrade = gradeLevels.find((g) => g.id === empInfo?.firstGradeId);
       const targetGrade = gradeLevels.find((g) => g.id === rec.recommendedGradeId);
       const dept = departments.find((d) => d.id === empInfo?.currentDepartmentId);
 
@@ -162,6 +165,7 @@ export const PromotionManagementView: React.FC<PromotionManagementViewProps> = (
         pers,
         empInfo,
         currentGrade,
+        firstGrade,
         targetGrade,
         dept,
       };
@@ -360,6 +364,8 @@ export const PromotionManagementView: React.FC<PromotionManagementViewProps> = (
       'Recommended Target Grade',
       'Department',
       'MDA',
+      'First Grade',
+      'Current Promotion Date',
     ];
 
     const rows = filteredEligible.map((item) => [
@@ -377,6 +383,8 @@ export const PromotionManagementView: React.FC<PromotionManagementViewProps> = (
       `"${item.nextGrade?.gradeName || ''}"`,
       `"${item.dept?.departmentName || ''}"`,
       `"${item.mda?.name || ''}"`,
+      `"${item.firstGrade?.gradeName || ''}"`,
+      `"${item.employment.currentPromotionDate || ''}"`,
     ]);
 
     const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
@@ -644,6 +652,9 @@ export const PromotionManagementView: React.FC<PromotionManagementViewProps> = (
                             <div className="text-[10px] text-slate-400">
                               Since {item.employment.dateAssignedCurrentGrade}
                             </div>
+                            <div className="text-[10px] text-slate-400">
+                              Entry: {item.firstGrade?.gradeName || '—'} • Promo: {item.employment.currentPromotionDate || '—'}
+                            </div>
                           </td>
 
                           <td className="p-3 text-center whitespace-nowrap">
@@ -856,6 +867,9 @@ export const PromotionManagementView: React.FC<PromotionManagementViewProps> = (
                               <span className="text-slate-700">{item.currentGrade?.gradeName}</span>
                               <ArrowRight className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                               <span className="text-blue-700 font-bold">{item.targetGrade?.gradeName}</span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 mt-0.5">
+                              Entry: {item.firstGrade?.gradeName || '—'} • Promo: {item.empInfo?.currentPromotionDate || '—'}
                             </div>
                           </td>
 

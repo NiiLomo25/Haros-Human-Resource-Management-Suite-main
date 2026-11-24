@@ -771,6 +771,14 @@ export const BulkRegistrationModal: React.FC<BulkRegistrationModalProps> = ({
                                       <span className="font-mono font-semibold">
                                         {row.normalized?.employment.statutoryRetirementDate}
                                       </span>
+                                      {(row.rawRow.otherContact || row.rawRow.firstGrade || row.rawRow.currentPromotionDate || row.rawRow.previousPosting) && (
+                                        <span className="block text-[10px] text-slate-500 mt-0.5">
+                                          {row.rawRow.otherContact && <>Contacts: {row.rawRow.otherContact} • </>}
+                                          {row.rawRow.firstGrade && <>First Grade: {row.rawRow.firstGrade} • </>}
+                                          {row.rawRow.currentPromotionDate && <>Promo: {row.rawRow.currentPromotionDate} • </>}
+                                          {row.rawRow.previousPosting && <>Prev Posting: {row.rawRow.previousPosting}</>}
+                                        </span>
+                                      )}
                                     </span>
                                   )}
                                   {row.status === 'Warning' && (

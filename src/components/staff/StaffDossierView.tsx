@@ -60,6 +60,7 @@ import {
 } from './TrainingAndSkillsEditor';
 import { StaffRegistrationModal } from './StaffRegistrationModal';
 import { SlideOverPanel } from '../common/SlideOverPanel';
+import { printPage } from '../../services/printService';
 
 interface StaffDossierViewProps {
   employeeId: number;
@@ -139,6 +140,7 @@ export const StaffDossierView: React.FC<StaffDossierViewProps> = ({
   const currentMda = mdas.find((m) => m.id === employment?.currentMdaId);
   const currentDept = departments.find((d) => d.id === employment?.currentDepartmentId);
   const currentGrade = gradeLevels.find((g) => g.id === employment?.currentGradeId);
+  const firstGrade = gradeLevels.find((g) => g.id === employment?.firstGradeId);
 
   // Computed values
   const age = personal ? db.calculateAge(personal.dateOfBirth) : 0;
@@ -159,6 +161,16 @@ export const StaffDossierView: React.FC<StaffDossierViewProps> = ({
   }
 
   const handleSavePersonal = () => {
+    const contacts = (editPersonalData.otherContacts || []).map((c) => c.trim()).filter((c) => c.length > 0);
+    const invalidContact = contacts.find((c) => (c.match(/\d/g) || []).length < 7);
+    if (invalidContact) {
+      notificationService.warning(
+        'Invalid Contact Number',
+        `Other Contact "${invalidContact}" does not look like a valid phone number (minimum 7 digits).`,
+        { module: 'Staff Management', actor: currentUser?.username }
+      );
+      return;
+    }
     db.updateEmployee(
       employeeId,
       {
@@ -166,6 +178,12 @@ export const StaffDossierView: React.FC<StaffDossierViewProps> = ({
           ...editPersonalData,
           nationalIdentificationNumber:
             editPersonalData.nationalIdentificationNumber?.trim().toUpperCase() || undefined,
+          otherContacts:
+            editPersonalData.otherContacts && editPersonalData.otherContacts.length > 0
+              ? Array.from(
+                  new Set(editPersonalData.otherContacts.map((c) => c.trim()).filter((c) => c.length > 0))
+                )
+              : undefined,
         },
       },
       currentUser?.username || 'admin'
@@ -269,7 +287,7 @@ export const StaffDossierView: React.FC<StaffDossierViewProps> = ({
                 `Prepared Staff Dossier CV (${employee?.staffId || 'Employee'}) for printing.`,
                 { module: 'Staff Management', actor: currentUser?.username }
               );
-              window.print();
+              void printPage();
             }}
             className="flex items-center space-x-1 px-3 py-1.5 rounded bg-white border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-50 transition-colors"
           >
@@ -417,6 +435,9 @@ export const StaffDossierView: React.FC<StaffDossierViewProps> = ({
                 <div><span className="text-slate-500">Nationality:</span> <strong>{personal.nationality}</strong></div>
                 <div><span className="text-slate-500">Ghana Card (NIA):</span> <strong className="font-mono">{personal.nationalIdentificationNumber || 'Pending'}</strong></div>
                 <div><span className="text-slate-500">Telephone:</span> <strong className="font-mono">{personal.telephoneNumber}</strong></div>
+                {personal.otherContacts && personal.otherContacts.length > 0 && (
+                  <div><span className="text-slate-500">Other Contacts:</span> <strong className="font-mono">{personal.otherContacts.join(', ')}</strong></div>
+                )}
                 <div><span className="text-slate-500">Email:</span> <strong>{personal.emailAddress}</strong></div>
               </div>
 
@@ -629,6 +650,9 @@ export const StaffDossierView: React.FC<StaffDossierViewProps> = ({
                   <div><span className="text-slate-500">Full Name:</span> <strong>{personal.fullName}</strong></div>
                   <div><span className="text-slate-500">Ghana Card (NIA):</span> <strong className="font-mono">{personal.nationalIdentificationNumber || 'Pending'}</strong></div>
                   <div><span className="text-slate-500">Telephone:</span> <strong className="font-mono">{personal.telephoneNumber}</strong></div>
+                  {personal.otherContacts && personal.otherContacts.length > 0 && (
+                    <div><span className="text-slate-500">Other Contacts:</span> <strong className="font-mono">{personal.otherContacts.join(', ')}</strong></div>
+                  )}
                   <div><span className="text-slate-500">Email:</span> <strong>{personal.emailAddress}</strong></div>
                   <div><span className="text-slate-500">Residential Address:</span> <strong>{personal.residentialAddress}</strong></div>
                 </div>
@@ -713,6 +737,50 @@ export const StaffDossierView: React.FC<StaffDossierViewProps> = ({
                     className="w-full h-8 px-2 border rounded"
                   />
                 </div>
+                <div className="sm:col-span-3">
+                  <label className="block text-slate-600 mb-1 font-semibold">Other Contact Number(s)</label>
+                  <div className="space-y-1.5">
+                    {(editPersonalData.otherContacts || []).map((contact, idx) => (
+                      <div key={idx} className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={contact}
+                          onChange={(e) => {
+                            const updated = [...(editPersonalData.otherContacts || [])];
+                            updated[idx] = e.target.value;
+                            setEditPersonalData({ ...editPersonalData, otherContacts: updated });
+                          }}
+                          className="flex-1 h-8 px-2 border rounded font-mono"
+                          placeholder="+233 55 000 0000"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = (editPersonalData.otherContacts || []).filter((_, i) => i !== idx);
+                            setEditPersonalData({ ...editPersonalData, otherContacts: updated });
+                          }}
+                          className="p-1.5 rounded text-rose-600 hover:text-rose-800 hover:bg-rose-50"
+                          title="Remove contact"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditPersonalData({
+                          ...editPersonalData,
+                          otherContacts: [...(editPersonalData.otherContacts || []), ''],
+                        })
+                      }
+                      className="flex items-center space-x-1 px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Add Contact</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -730,6 +798,7 @@ export const StaffDossierView: React.FC<StaffDossierViewProps> = ({
                 <div><span className="text-slate-500">Date of First Appointment:</span> <strong className="font-mono">{employment.dateOfFirstAppointment}</strong></div>
                 <div><span className="text-slate-500">Date of Assumption of Duty:</span> <strong className="font-mono">{employment.dateOfAssumptionOfDuty}</strong></div>
                 <div><span className="text-slate-500">Confirmation Date:</span> <strong className="font-mono">{employment.confirmationDate || 'Probation in Progress'}</strong></div>
+                <div><span className="text-slate-500">Current Promotion Date:</span> <strong className="font-mono">{employment.currentPromotionDate || '—'}</strong></div>
                 <div><span className="text-slate-500">Total Length of Service:</span> <strong className="font-mono">{yearsOfService} years</strong></div>
               </div>
 
@@ -738,7 +807,9 @@ export const StaffDossierView: React.FC<StaffDossierViewProps> = ({
                 <div><span className="text-slate-500">Staff Category:</span> <strong className="text-indigo-900">{employment.employeeCategory} Cadre</strong></div>
                 <div><span className="text-slate-500">Position / Role:</span> <strong>{employment.currentPositionTitle}</strong></div>
                 <div><span className="text-slate-500">Grade Level:</span> <strong className="text-blue-700">{currentGrade?.gradeName}</strong></div>
+                <div><span className="text-slate-500">First Grade (Entry):</span> <strong>{firstGrade?.gradeName || '—'}</strong></div>
                 <div><span className="text-slate-500">Date Assigned Grade:</span> <strong className="font-mono">{employment.dateAssignedCurrentGrade}</strong></div>
+                <div><span className="text-slate-500">Previous Posting:</span> <strong>{employment.previousPosting || '—'}</strong></div>
               </div>
             </div>
 
@@ -1585,8 +1656,33 @@ export const StaffDossierView: React.FC<StaffDossierViewProps> = ({
           </div>
         )}
 
+        {/* TAB 6: DEPARTMENT HISTORY / POSTINGS */}
+        {activeTab === 6 && (
+          <div className="space-y-4 text-xs">
+            <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2">
+              Department History & Postings
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-lg space-y-1.5">
+                <div className="font-bold text-blue-950 text-[11px] uppercase">Current Posting</div>
+                <div><span className="text-slate-500">MDA:</span> <strong>{currentMda?.name || '—'}</strong></div>
+                <div><span className="text-slate-500">Department:</span> <strong>{currentDept?.departmentName || '—'}</strong></div>
+                <div><span className="text-slate-500">Position:</span> <strong>{employment.currentPositionTitle}</strong></div>
+                <div><span className="text-slate-500">Grade:</span> <strong className="text-blue-700">{currentGrade?.gradeName || '—'}</strong></div>
+                <div><span className="text-slate-500">Since:</span> <strong className="font-mono">{employment.dateAssignedCurrentRole || '—'}</strong></div>
+              </div>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
+                <div className="font-bold text-slate-800 text-[11px] uppercase">Previous Posting</div>
+                <div><span className="text-slate-500">Recorded Posting:</span> <strong>{employment.previousPosting || '—'}</strong></div>
+                <div><span className="text-slate-500">First Grade (Entry):</span> <strong>{firstGrade?.gradeName || '—'}</strong></div>
+                <div><span className="text-slate-500">Current Promotion Date:</span> <strong className="font-mono">{employment.currentPromotionDate || '—'}</strong></div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Fallback for other standard tabs */}
-        {(activeTab === 6 || activeTab === 8 || activeTab === 9 || activeTab === 10 || activeTab === 11) && (
+        {(activeTab === 8 || activeTab === 9 || activeTab === 10 || activeTab === 11) && (
           <div className="py-12 text-center text-slate-500 text-xs space-y-2">
             <div className="font-bold text-slate-700 text-sm">
               {tabs.find((t) => t.id === activeTab)?.label}

@@ -98,6 +98,7 @@ export async function generateBulkRegistrationTemplate(): Promise<void> {
   const empWidths = [
     18, 18, 18, 16, 24, 12, 16, 15, 22, 20, 28, 30, 22, 20, 20,
     22, 24, 38, 36, 30, 38, 28, 28, 14, 18, 20, 32, 30, 14,
+    34, 26, 28, 36,
   ];
 
   empSheet.columns = EMPLOYEE_HEADERS.map((header, idx) => ({
@@ -133,8 +134,8 @@ export async function generateBulkRegistrationTemplate(): Promise<void> {
 
   // Format text & date columns on Employees sheet
   const MAX_TEMPLATE_ROWS = 1005;
-  const textColIndices = [1, 9, 10, 15]; // Staff ID*, Ghana Card (NIA), Telephone*, Next of Kin Phone
-  const dateColIndices = [5, 22, 23]; // DOB, First Appointment, Assumption of Duty
+  const textColIndices = [1, 9, 10, 15, 30, 33]; // Staff ID*, Ghana Card (NIA), Telephone*, Next of Kin Phone, Other Contact(s), Previous Posting
+  const dateColIndices = [5, 22, 23, 32]; // DOB, First Appointment, Assumption of Duty, Current Promotion Date
 
   textColIndices.forEach((colIdx) => {
     const col = empSheet.getColumn(colIdx);
@@ -309,6 +310,7 @@ export async function generateBulkRegistrationTemplate(): Promise<void> {
     { colIdx: 21, formula: '=GradeList', title: 'Grade Scale', prompt: 'Select Civil Service Grade Scale' },
     { colIdx: 25, formula: '=SalaryStepList', title: 'Salary Step', prompt: 'Select Salary Step (1 to 10)' },
     { colIdx: 26, formula: '=QualificationLevelList', title: 'Qualification Level', prompt: 'Select Highest Qualification Level' },
+    { colIdx: 31, formula: '=GradeList', title: 'First Grade', prompt: 'Select the officer\'s entry-grade Civil Service scale' },
   ];
 
   rangeValidationMap.forEach((rv) => {
@@ -480,6 +482,10 @@ export async function generateBulkRegistrationTemplate(): Promise<void> {
     ['Employees -> Qualification Title', 'MPA Public Sector Management'],
     ['Employees -> Awarding Institution', 'GIMPA'],
     ['Employees -> Year Obtained', '2020'],
+    ['Employees -> Other Contact(s)', '+233 55 111 2233, +233 20 444 5566'],
+    ['Employees -> First Grade (Entry Grade)', gradeLabels[0] || 'Assistant Director IIA'],
+    ['Employees -> Current Promotion Date (DD/MM/YYYY)', '10/01/2022'],
+    ['Employees -> Previous Posting', 'HR Research Unit, Ministry of Finance'],
     ['Training Capabilities -> Staff ID*', sampleEmpId],
     ['Training Capabilities -> Capability Description', 'Civil Service Establishment Quota & Post Control Auditing'],
     ['Skills -> Staff ID*', sampleEmpId],
@@ -546,6 +552,10 @@ export async function generateBulkRegistrationTemplate(): Promise<void> {
     ['Employees', 'Salary Level', 'Optional', 'Numeric rank; defaults to selected Grade Scale rank if blank.'],
     ['Employees', 'Salary Step (1-10)', 'Optional', 'Dropdown 1–10 (defaults to 1 if blank).'],
     ['Employees', 'Qualification (Level, Title, Institution, Year)', 'Optional', 'Year Obtained must be a 4-digit year not in the future.'],
+    ['Employees', 'Other Contact(s)', 'Optional', 'Additional Ghana phone numbers separated by comma, semicolon, slash, pipe or new line. Auto-normalized to +233.'],
+    ['Employees', 'First Grade (Entry Grade)', 'Optional', 'Dropdown populated from live Civil Service Grade Levels (entry grade at appointment).'],
+    ['Employees', 'Current Promotion Date (DD/MM/YYYY)', 'Optional', 'DD/MM/YYYY format. Cannot be in the future or before First Appointment.'],
+    ['Employees', 'Previous Posting', 'Optional', 'Free text describing the officer\'s prior posting before current placement.'],
     ['Training Capabilities', 'Staff ID* / Capability Description', 'Optional Sheet', 'Repeat Staff ID (max 10 rows per officer). Staff ID must exist on Employees sheet.'],
     ['Skills', 'Staff ID* / Skill Name* / Skill Category* / Evidence', 'Optional Sheet', 'Repeat Staff ID (max 10 rows per officer). Category from 8 approved values.'],
     ['Professional Memberships', 'Staff ID* / Professional Body* / Membership Number* / Category / Dates / Status', 'Optional Sheet', 'Repeat Staff ID (max 10 rows per officer). Status: Active, Lapsed, or Suspended.'],

@@ -679,6 +679,47 @@ function registerIpc() {
       return { ok: false, error: err.message };
     }
   });
+  // Native printing. window.print() in Electron opens Chromium's preview,
+  // which is unsupported ("This app doesn't support print preview") — route
+  // to the OS print dialog instead. printBackground is required or CSS
+  // backgrounds/letterheads print blank.
+  ipcMain.handle('hrmis:print', async () => {
+    try {
+      if (!mainWindow || mainWindow.isDestroyed()) return { ok: false, error: 'No window' };
+      const success = await mainWindow.webContents.print({
+        silent: false,
+        printBackground: true,
+        preferCSSPageSize: true,
+      });
+      return { ok: success };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+  // Print preview path: render the page to PDF (honouring the @page CSS),
+  // save under %LOCALAPPDATA%\HRMIS\Reports, then open it in the default
+  // PDF viewer — a real preview before committing to paper.
+  ipcMain.handle('hrmis:print-to-pdf', async (_e, opts = {}) => {
+    try {
+      if (!mainWindow || mainWindow.isDestroyed()) return { ok: false, error: 'No window' };
+      const reportsDir = getDataPaths().reportsDir;
+      fs.mkdirSync(reportsDir, { recursive: true });
+      const pdf = await mainWindow.webContents.printToPDF({
+        printBackground: true,
+        preferCSSPageSize: true,
+        landscape: Boolean(opts.landscape),
+        margins: opts.margins,
+      });
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const fileName = `PrintPreview-${stamp}.pdf`;
+      const filePath = path.join(reportsDir, fileName);
+      fs.writeFileSync(filePath, pdf);
+      const openErr = await shell.openPath(filePath);
+      return { ok: !openErr, filePath, error: openErr || undefined };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -45,6 +45,10 @@ export const EMPLOYEE_HEADERS = [
   'Qualification Title',
   'Awarding Institution',
   'Year Obtained',
+  'Other Contact(s)',
+  'First Grade (Entry Grade)',
+  'Current Promotion Date (DD/MM/YYYY)',
+  'Previous Posting',
 ] as const;
 
 export const CAPABILITY_HEADERS = [
@@ -106,6 +110,10 @@ export interface RawEmployeeRow {
   qualificationTitle: string;
   qualificationInstitution: string;
   yearObtained: string;
+  otherContact: string;
+  firstGrade: string;
+  currentPromotionDate: string;
+  previousPosting: string;
 }
 
 export interface RawCapabilityRow {
@@ -172,6 +180,7 @@ export interface NormalizedEmployeeRecord {
     nextOfKinName: string;
     nextOfKinRelationship: string;
     nextOfKinPhone: string;
+    otherContacts?: string[];
   };
   employment: {
     employeeCategory: EmployeeCategory;
@@ -190,6 +199,9 @@ export interface NormalizedEmployeeRecord {
     currentSalaryStep: number;
     dateAssignedCurrentRole: string;
     dateAssignedCurrentGrade: string;
+    firstGradeId?: number;
+    currentPromotionDate?: string;
+    previousPosting?: string;
     statutoryRetirementDate: string; // Computed YYYY-MM-DD
   };
   initialQualification?: {

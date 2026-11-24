@@ -97,6 +97,16 @@ export const INITIAL_GRADE_LEVELS: GradeLevel[] = [
   // General Civil Service Class: Specific Principal Officer and Chief Officer Ranks
   { id: 23, gradeName: 'Principal Officer', hierarchyRank: 16, minYearsInGradeForPromotion: 5, monthlyBaseGhs: 13500, isActive: true, cadreCategory: 'General', occupationalGroup: 'General Administration', progressionMode: 'Competitive', isSeniorManagement: true },
   { id: 24, gradeName: 'Chief Officer', hierarchyRank: 18, minYearsInGradeForPromotion: 5, monthlyBaseGhs: 16200, isActive: true, cadreCategory: 'General', occupationalGroup: 'General Administration', progressionMode: 'Competitive', isSeniorManagement: true },
+
+  // Supply & Stores Management Class (Sub-Professional)
+  { id: 25, gradeName: 'Store Keeper', hierarchyRank: 25, minYearsInGradeForPromotion: 3, monthlyBaseGhs: 3800, isActive: true, cadreCategory: 'Sub-Professional', occupationalGroup: 'Supply & Stores Management', progressionMode: 'Automatic', isSeniorManagement: false },
+  { id: 26, gradeName: 'Supply Officer', hierarchyRank: 26, minYearsInGradeForPromotion: 3, monthlyBaseGhs: 4600, isActive: true, cadreCategory: 'Sub-Professional', occupationalGroup: 'Supply & Stores Management', progressionMode: 'Automatic', isSeniorManagement: false },
+  { id: 27, gradeName: 'Senior Supply Officer', hierarchyRank: 27, minYearsInGradeForPromotion: 3, monthlyBaseGhs: 6200, isActive: true, cadreCategory: 'Sub-Professional', occupationalGroup: 'Supply & Stores Management', progressionMode: 'Automatic', isSeniorManagement: false },
+  { id: 28, gradeName: 'Principal Supply Officer', hierarchyRank: 28, minYearsInGradeForPromotion: 3, monthlyBaseGhs: 8400, isActive: true, cadreCategory: 'Sub-Professional', occupationalGroup: 'Supply & Stores Management', progressionMode: 'Automatic', isSeniorManagement: false },
+  { id: 29, gradeName: 'Principal Store Keeper', hierarchyRank: 29, minYearsInGradeForPromotion: 5, monthlyBaseGhs: 9800, isActive: true, cadreCategory: 'Sub-Professional', occupationalGroup: 'Supply & Stores Management', progressionMode: 'Competitive', isSeniorManagement: true },
+
+  // Procurement & Supply Chain Management Class (Professional)
+  { id: 30, gradeName: 'Principal Procurement Manager', hierarchyRank: 22, minYearsInGradeForPromotion: 5, monthlyBaseGhs: 17800, isActive: true, cadreCategory: 'Professional', occupationalGroup: 'Procurement & Supply Chain Management', progressionMode: 'Competitive', isSeniorManagement: true },
 ];
 
 export const INITIAL_ESTABLISHMENT: EstablishmentPosition[] = [

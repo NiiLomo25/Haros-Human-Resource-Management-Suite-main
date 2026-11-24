@@ -89,6 +89,7 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
   const [nextOfKinName, setNextOfKinName] = useState('');
   const [nextOfKinRelationship, setNextOfKinRelationship] = useState('Spouse');
   const [nextOfKinPhone, setNextOfKinPhone] = useState('');
+  const [otherContacts, setOtherContacts] = useState<string[]>([]);
 
   // Form State - Employment
   const [employeeCategory, setEmployeeCategory] = useState<EmployeeCategory>('Professional');
@@ -101,6 +102,10 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
   const [currentGradeId, setCurrentGradeId] = useState<number>(gradeLevels[4]?.id || 5); // L14 default
   const [currentSalaryLevel, setCurrentSalaryLevel] = useState<number>(14);
   const [currentSalaryStep, setCurrentSalaryStep] = useState<number>(1);
+  const [firstGradeId, setFirstGradeId] = useState<number | ''>('');
+  const [currentPromotionDate, setCurrentPromotionDate] = useState('');
+  const [previousPosting, setPreviousPosting] = useState('');
+  const [dateAssignedCurrentGrade, setDateAssignedCurrentGrade] = useState('');
 
   // Form State - Initial Qualification & Professional Memberships
   const [qualLevel, setQualLevel] = useState('Bachelor');
@@ -144,6 +149,7 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
         setNextOfKinName(personal.nextOfKinName || '');
         setNextOfKinRelationship(personal.nextOfKinRelationship || 'Spouse');
         setNextOfKinPhone(personal.nextOfKinPhone || '');
+        setOtherContacts(personal.otherContacts ? [...personal.otherContacts] : []);
       }
 
       if (employment) {
@@ -157,6 +163,10 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
         setCurrentGradeId(employment.currentGradeId || 5);
         setCurrentSalaryLevel(employment.currentSalaryLevel || 14);
         setCurrentSalaryStep(employment.currentSalaryStep || 1);
+        setFirstGradeId(employment.firstGradeId ?? '');
+        setCurrentPromotionDate(employment.currentPromotionDate || '');
+        setPreviousPosting(employment.previousPosting || '');
+        setDateAssignedCurrentGrade(employment.dateAssignedCurrentGrade || '');
       }
 
       if (quals && quals.length > 0) {
@@ -222,6 +232,7 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
       setNextOfKinName('');
       setNextOfKinRelationship('Spouse');
       setNextOfKinPhone('');
+      setOtherContacts([]);
       setEmployeeCategory('Professional');
       setEmploymentType('Permanent & Pensionable');
       setDateOfFirstAppointment('2022-01-10');
@@ -232,6 +243,10 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
       setCurrentGradeId(gradeLevels[4]?.id || 5);
       setCurrentSalaryLevel(14);
       setCurrentSalaryStep(1);
+      setFirstGradeId('');
+      setCurrentPromotionDate('');
+      setPreviousPosting('');
+      setDateAssignedCurrentGrade('');
       setQualLevel('Bachelor');
       setQualTitle('');
       setQualInstitution('');
@@ -287,6 +302,21 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
     if (calculatedAge < 18 || calculatedAge > 65) {
       failValidation('Employee age must be between 18 and 65 years.');
       return;
+    }
+    if (currentPromotionDate) {
+      const promoDate = new Date(currentPromotionDate);
+      if (isNaN(promoDate.getTime())) {
+        failValidation('Current Promotion Date must be a valid date.', 'employment');
+        return;
+      }
+      if (promoDate > new Date()) {
+        failValidation('Current Promotion Date cannot be in the future.', 'employment');
+        return;
+      }
+      if (dateOfFirstAppointment && promoDate < new Date(dateOfFirstAppointment)) {
+        failValidation('Current Promotion Date cannot be earlier than First Appointment.', 'employment');
+        return;
+      }
     }
 
     // Validate and clean Professional Memberships
@@ -348,6 +378,11 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
 
       if (validMemberships.length >= 10) break;
     }
+
+    // Clean Other Contact numbers: trim, drop blanks, deduplicate
+    const cleanOtherContacts = Array.from(
+      new Set(otherContacts.map((c) => c.trim()).filter((c) => c.length > 0))
+    );
 
     // Clean capabilities: ignore completely blank entries
     const nonBlankCaps = capabilities
@@ -414,6 +449,7 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
               nextOfKinName: nextOfKinName.trim() || 'Not specified',
               nextOfKinRelationship,
               nextOfKinPhone: nextOfKinPhone.trim() || telephoneNumber || '+233 20 000 0000',
+              otherContacts: cleanOtherContacts.length > 0 ? cleanOtherContacts : undefined,
             },
             employment: {
               employeeCategory,
@@ -428,7 +464,12 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
               currentSalaryLevel: Number(currentSalaryLevel),
               currentSalaryStep: Number(currentSalaryStep),
               dateAssignedCurrentRole: dateOfAssumptionOfDuty,
-              dateAssignedCurrentGrade: dateOfFirstAppointment,
+              dateAssignedCurrentGrade: isEditMode
+                ? dateAssignedCurrentGrade || dateOfFirstAppointment
+                : currentPromotionDate || dateOfFirstAppointment,
+              firstGradeId: firstGradeId === '' ? undefined : Number(firstGradeId),
+              currentPromotionDate: currentPromotionDate || undefined,
+              previousPosting: previousPosting.trim() || undefined,
             },
             memberships: validMemberships,
             trainingCapabilities: nonBlankCaps,
@@ -481,6 +522,7 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
               nextOfKinName: nextOfKinName.trim() || 'Not specified',
               nextOfKinRelationship,
               nextOfKinPhone: nextOfKinPhone.trim() || telephoneNumber || '+233 20 000 0000',
+              otherContacts: cleanOtherContacts.length > 0 ? cleanOtherContacts : undefined,
             },
             employment: {
               employeeCategory,
@@ -495,7 +537,12 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
               currentSalaryLevel: Number(currentSalaryLevel),
               currentSalaryStep: Number(currentSalaryStep),
               dateAssignedCurrentRole: dateOfAssumptionOfDuty,
-              dateAssignedCurrentGrade: dateOfFirstAppointment,
+              dateAssignedCurrentGrade: isEditMode
+                ? dateAssignedCurrentGrade || dateOfFirstAppointment
+                : currentPromotionDate || dateOfFirstAppointment,
+              firstGradeId: firstGradeId === '' ? undefined : Number(firstGradeId),
+              currentPromotionDate: currentPromotionDate || undefined,
+              previousPosting: previousPosting.trim() || undefined,
             },
             initialQualification: qualTitle.trim()
               ? {
@@ -799,6 +846,56 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Other Contact Numbers */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="font-bold text-slate-800 text-[11px] uppercase tracking-wider">
+                    Other Contact Number(s) (Optional)
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setOtherContacts((prev) => [...prev, ''])}
+                    className="flex items-center space-x-1 px-2.5 py-1 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-[11px] font-semibold transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Add Contact</span>
+                  </button>
+                </div>
+                {otherContacts.length === 0 ? (
+                  <p className="text-[11px] text-slate-400 italic">
+                    No additional contact numbers. Click <strong>+ Add Contact</strong> to capture secondary phone numbers.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {otherContacts.map((contact, idx) => (
+                      <div key={idx} className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={contact}
+                          onChange={(e) =>
+                            setOtherContacts((prev) =>
+                              prev.map((c, i) => (i === idx ? e.target.value : c))
+                            )
+                          }
+                          className="flex-1 h-8 px-2 rounded border border-slate-300 bg-white font-mono text-xs"
+                          placeholder="+233 55 000 0000"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOtherContacts((prev) => prev.filter((_, i) => i !== idx))
+                          }
+                          className="p-1.5 rounded text-rose-600 hover:text-rose-800 hover:bg-rose-50 transition-colors"
+                          title="Remove contact"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -981,6 +1078,50 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
                     }))}
                     placeholder="Select step..."
                     searchPlaceholder="Filter steps..."
+                  />
+                </div>
+              </div>
+
+              {/* Entry Grade, Promotion Date & Previous Posting */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-slate-600 font-semibold mb-1">
+                    First Grade (Entry Grade)
+                  </label>
+                  <SearchableSelect
+                    value={firstGradeId}
+                    onChange={(val) => setFirstGradeId(val === '' ? '' : Number(val))}
+                    options={gradeLevels.map((g) => ({
+                      value: g.id.toString(),
+                      label: g.gradeName,
+                    }))}
+                    placeholder="Select entry grade..."
+                    searchPlaceholder="Filter grade scales..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 font-semibold mb-1">
+                    Current Promotion Date
+                  </label>
+                  <input
+                    type="date"
+                    value={currentPromotionDate}
+                    onChange={(e) => setCurrentPromotionDate(e.target.value)}
+                    className="w-full h-8 px-2 rounded border border-slate-300 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 font-semibold mb-1">
+                    Previous Posting
+                  </label>
+                  <input
+                    type="text"
+                    value={previousPosting}
+                    onChange={(e) => setPreviousPosting(e.target.value)}
+                    className="w-full h-8 px-2.5 rounded border border-slate-300 text-xs"
+                    placeholder="e.g. HR Research Unit, Ministry of Finance"
                   />
                 </div>
               </div>

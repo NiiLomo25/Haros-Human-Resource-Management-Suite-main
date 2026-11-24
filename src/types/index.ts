@@ -69,6 +69,7 @@ export interface EmployeePersonalInfo {
   nextOfKinRelationship: string;
   nextOfKinPhone: string;
   nextOfKinAddress?: string;
+  otherContacts?: string[];
   photoUrl?: string;
 }
 
@@ -92,6 +93,9 @@ export interface EmployeeEmploymentInfo {
   reportingOfficerEmployeeId?: number;
   dateAssignedCurrentRole: string;
   dateAssignedCurrentGrade: string;
+  firstGradeId?: number;
+  currentPromotionDate?: string;
+  previousPosting?: string;
 }
 
 export interface EmployeeQualification {

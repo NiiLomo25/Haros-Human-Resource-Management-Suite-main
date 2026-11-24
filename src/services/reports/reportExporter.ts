@@ -413,6 +413,11 @@ export async function exportReportToPdf(
     bodyRows.push(data.summaryRow.map((c) => sanitizePdfText(c)));
   }
 
+  // Scale font/padding down for wide tables so added columns don't overflow
+  const colCount = data.headers.length;
+  const tableFontSize = colCount >= 14 ? 5.6 : colCount >= 11 ? 6.4 : isLandscape ? 7.2 : 7.8;
+  const tableCellPadding = colCount >= 14 ? 1.2 : colCount >= 11 ? 1.6 : 2;
+
   autoTable(doc, {
     startY,
     head: [data.headers.map((h) => sanitizePdfText(h))],
@@ -422,8 +427,8 @@ export async function exportReportToPdf(
     showHead: 'everyPage',
     styles: {
       font: 'helvetica',
-      fontSize: isLandscape ? 7.2 : 7.8,
-      cellPadding: 2,
+      fontSize: tableFontSize,
+      cellPadding: tableCellPadding,
       textColor: [15, 23, 42],
       lineColor: [226, 232, 240],
       lineWidth: 0.2,
@@ -434,7 +439,7 @@ export async function exportReportToPdf(
       fillColor: [15, 23, 42],
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      fontSize: isLandscape ? 7.2 : 7.8,
+      fontSize: tableFontSize,
     },
     alternateRowStyles: {
       fillColor: [248, 250, 252],
