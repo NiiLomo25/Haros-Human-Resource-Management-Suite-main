@@ -6,6 +6,7 @@ import {
   CAPABILITY_HEADERS,
   SKILL_HEADERS,
   MEMBERSHIP_HEADERS,
+  ORG_HEADERS,
   ValidationReport,
   ImportResultSummary,
 } from './types';
@@ -236,6 +237,45 @@ export async function generateBulkRegistrationTemplate(): Promise<void> {
   });
 
   // -------------------------------------------------------------------------
+  // 4b. OPTIONAL "MDA & Departments" SHEET — register/update orgs inline
+  // -------------------------------------------------------------------------
+  const orgSheet = workbook.addWorksheet(SHEET_NAMES.ORGS, {
+    views: [{ state: 'frozen', ySplit: 1 }],
+  });
+
+  orgSheet.columns = [
+    { header: ORG_HEADERS[0], key: 'mdaCode', width: 16 },
+    { header: ORG_HEADERS[1], key: 'mdaName', width: 42 },
+    { header: ORG_HEADERS[2], key: 'mdaType', width: 18 },
+    { header: ORG_HEADERS[3], key: 'departmentCode', width: 20 },
+    { header: ORG_HEADERS[4], key: 'departmentName', width: 42 },
+  ];
+  orgSheet.getColumn(1).numFmt = '@';
+  orgSheet.getColumn(4).numFmt = '@';
+
+  const orgHeaderRow = orgSheet.getRow(1);
+  orgHeaderRow.height = 26;
+  orgHeaderRow.eachCell((cell, colIdx) => {
+    const isReq = String(ORG_HEADERS[colIdx - 1] || '').endsWith('*');
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: isReq ? 'FF1E3A8A' : 'FF334155' },
+    };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+  });
+
+  addSheetDataValidation(orgSheet, `C2:C${MAX_TEMPLATE_ROWS}`, {
+    type: 'list',
+    allowBlank: true,
+    formulae: ['"Ministry,Department,Agency,Commission"'],
+    showErrorMessage: true,
+    errorTitle: 'Invalid MDA Type',
+    error: 'Select Ministry, Department, Agency, or Commission.',
+  });
+
+  // -------------------------------------------------------------------------
   // 5. LISTS SHEET (HIDDEN) WITH LIVE MASTER DATA & NAMED RANGES
   // -------------------------------------------------------------------------
   const listsSheet = workbook.addWorksheet(SHEET_NAMES.LISTS, {
@@ -416,10 +456,11 @@ export async function generateBulkRegistrationTemplate(): Promise<void> {
     ['2. Staff ID Rule', 'Every employee must have a manually typed, unique Staff ID (Text format, e.g. OHCS-EMP-00999). Duplicates inside the file or already in the database will fail validation.'],
     ['3. Linking Across Sheets', 'To attach training capabilities, skills, or professional memberships to an employee, repeat the exact same Staff ID on the "Training Capabilities", "Skills", and "Professional Memberships" sheets.'],
     ['4. Capabilities, Skills & Memberships Limits', 'Maximum 10 Training Capabilities, 10 Skills, and 10 Professional Memberships per Staff ID. Duplicate entries for the same Staff ID are rejected.'],
-    ['5. Date Format', 'Use DD/MM/YYYY (e.g. 15/06/1988). Employees must be at least 18 years old. Assumption of Duty cannot be earlier than First Appointment.'],
-    ['6. Phone Numbers', 'Enter valid Ghana numbers (e.g. +233 24 412 8901 or 0244128901). Local 0XX numbers are automatically normalized to +233 during upload.'],
-    ['7. MDA & Department', 'Select MDA first on the Employees sheet. Department must belong to the chosen MDA (validated against live system master data).'],
+    ['5. Date Format', 'Use DD/MM/YYYY (e.g. 15/06/1988). Employees must be at least 18 years old. Assumption of Duty is optional and defaults to First Appointment; if provided it cannot be earlier than First Appointment.'],
+    ['6. Phone Numbers', 'Telephone and Other Contact(s) are optional. When provided, enter valid Ghana numbers (e.g. +233 24 412 8901 or 0244128901). Local 0XX numbers are automatically normalized to +233 during upload.'],
+    ['7. MDA & Department', 'Select an existing MDA or register a new one inline as "CODE - Full Name" (or on the optional "MDA & Departments" sheet). Departments are matched to the selected MDA; unknown departments are registered automatically.'],
     ['8. Statutory Retirement', 'Calculated automatically on import as the earlier of 60 years of age or 35 years of service from First Appointment.'],
+    ['9. Existing Staff IDs', 'Uploading a Staff ID that already exists on an ACTIVE record UPDATES that record; blank optional cells keep their saved values. Deleted Staff IDs and duplicate IDs within the file are rejected.'],
   ];
 
   instSheet.getCell('A4').value = 'GENERAL RULES & SYSTEM LIMITS';
@@ -462,20 +503,20 @@ export async function generateBulkRegistrationTemplate(): Promise<void> {
     ['Employees -> Marital Status', 'Married'],
     ['Employees -> Nationality', 'Ghanaian'],
     ['Employees -> Ghana Card (NIA)', 'GHA-718293041-9'],
-    ['Employees -> Telephone (+233)*', '+233 24 555 0199'],
+    ['Employees -> Telephone (+233)', '+233 24 555 0199'],
     ['Employees -> Email', 'abena.boateng@ohcs.gov.gh'],
     ['Employees -> Residential Address', 'No. 14 Liberation Road, Airport Residential, Accra'],
     ['Employees -> Next of Kin Name', 'Kwaku Boateng'],
     ['Employees -> Next of Kin Relationship', 'Spouse'],
     ['Employees -> Next of Kin Phone', '+233 20 555 0188'],
     ['Employees -> Staff Categorization*', 'Professional'],
-    ['Employees -> Employment Type', 'Permanent & Pensionable'],
+    ['Employees -> Employment Type*', 'Permanent & Pensionable'],
     ['Employees -> MDA*', sampleMda],
     ['Employees -> Department*', sampleDept],
     ['Employees -> Designation*', 'Senior Human Resource Officer'],
     ['Employees -> Grade Scale*', sampleGrade],
     ['Employees -> First Appointment (DD/MM/YYYY)*', '10/01/2022'],
-    ['Employees -> Assumption of Duty (DD/MM/YYYY)*', '10/01/2022'],
+    ['Employees -> Assumption of Duty (DD/MM/YYYY)', '10/01/2022'],
     ['Employees -> Salary Level', '14'],
     ['Employees -> Salary Step (1-10)', '1'],
     ['Employees -> Qualification Level', 'Master'],
@@ -537,18 +578,18 @@ export async function generateBulkRegistrationTemplate(): Promise<void> {
     ['Employees', 'Marital Status', 'Optional', 'Dropdown: Single, Married, Divorced, Widowed, Separated'],
     ['Employees', 'Nationality', 'Optional', 'Defaults to Ghanaian if left blank.'],
     ['Employees', 'Ghana Card (NIA)', 'Optional', 'NIA Ghana Card number in GHA-XXXXXXXXX-X format (e.g. GHA-718293041-9).'],
-    ['Employees', 'Telephone (+233)*', 'Required', 'Ghana number (+233XXXXXXXXX or 0XXXXXXXXX). Auto-normalized to +233.'],
+    ['Employees', 'Telephone (+233)', 'Optional', 'Ghana number (+233XXXXXXXXX or 0XXXXXXXXX). Auto-normalized to +233.'],
     ['Employees', 'Email', 'Optional', 'Valid email format (e.g. name@civilservice.gov.gh).'],
     ['Employees', 'Residential Address', 'Optional', 'Current residential address.'],
     ['Employees', 'Next of Kin (Name / Rel / Phone)', 'Optional', 'Next of kin full name, relationship, and +233 phone.'],
     ['Employees', 'Staff Categorization*', 'Required', 'Dropdown: Professional, Sub-Professional, Technical, Administrative, Consultant'],
-    ['Employees', 'Employment Type', 'Optional', 'Dropdown: Permanent & Pensionable, Fixed-Term Contract, Casual'],
-    ['Employees', 'MDA*', 'Required', 'Dropdown populated from live MDAs in system.'],
-    ['Employees', 'Department*', 'Required', 'Dependent dropdown; department must belong to selected MDA.'],
+    ['Employees', 'Employment Type*', 'Required', 'Dropdown: Permanent & Pensionable, Fixed-Term Contract, Casual'],
+    ['Employees', 'MDA*', 'Required', 'Dropdown populated from live MDAs. New MDA may be registered inline using "CODE - Full Name" or on the "MDA & Departments" sheet.'],
+    ['Employees', 'Department*', 'Required', 'Department must belong to the selected MDA. Unknown departments are registered automatically at import.'],
     ['Employees', 'Designation*', 'Required', 'Role / position title (e.g. Senior Human Resource Officer).'],
     ['Employees', 'Grade Scale*', 'Required', 'Dropdown populated from live Civil Service Grade Levels.'],
     ['Employees', 'First Appointment (DD/MM/YYYY)*', 'Required', 'DD/MM/YYYY format. Used for statutory 35-year service computation.'],
-    ['Employees', 'Assumption of Duty (DD/MM/YYYY)*', 'Required', 'DD/MM/YYYY format. Cannot be before First Appointment.'],
+    ['Employees', 'Assumption of Duty (DD/MM/YYYY)', 'Optional', 'DD/MM/YYYY format. Defaults to First Appointment when blank; cannot be before First Appointment.'],
     ['Employees', 'Salary Level', 'Optional', 'Numeric rank; defaults to selected Grade Scale rank if blank.'],
     ['Employees', 'Salary Step (1-10)', 'Optional', 'Dropdown 1–10 (defaults to 1 if blank).'],
     ['Employees', 'Qualification (Level, Title, Institution, Year)', 'Optional', 'Year Obtained must be a 4-digit year not in the future.'],
@@ -559,6 +600,7 @@ export async function generateBulkRegistrationTemplate(): Promise<void> {
     ['Training Capabilities', 'Staff ID* / Capability Description', 'Optional Sheet', 'Repeat Staff ID (max 10 rows per officer). Staff ID must exist on Employees sheet.'],
     ['Skills', 'Staff ID* / Skill Name* / Skill Category* / Evidence', 'Optional Sheet', 'Repeat Staff ID (max 10 rows per officer). Category from 8 approved values.'],
     ['Professional Memberships', 'Staff ID* / Professional Body* / Membership Number* / Category / Dates / Status', 'Optional Sheet', 'Repeat Staff ID (max 10 rows per officer). Status: Active, Lapsed, or Suspended.'],
+    ['MDA & Departments', 'MDA Code* / MDA Name* / MDA Type / Department Code / Department Name', 'Optional Sheet', 'Register or update MDAs and Departments. Leave Department columns blank for MDA-only rows. Matching records are updated; new ones are created on import.'],
   ];
 
   guideRows.forEach((gr) => {

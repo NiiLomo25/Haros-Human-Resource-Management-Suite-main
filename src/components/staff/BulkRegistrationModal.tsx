@@ -1144,14 +1144,22 @@ export const BulkRegistrationModal: React.FC<BulkRegistrationModalProps> = ({
                     </button>
                   </div>
 
-                  {/* X Imported, Y Skipped, Z Failed */}
-                  <div className="grid grid-cols-3 gap-3">
+                  {/* X Imported, Y Updated, Z Skipped, W Failed */}
+                  <div className="grid grid-cols-4 gap-3">
                     <div className="p-4 rounded-xl border border-emerald-200 bg-white text-center">
                       <div className="text-2xl font-black text-emerald-700">
                         {importResult.importedCount}
                       </div>
                       <div className="text-[11px] font-bold uppercase text-slate-600 mt-0.5">
                         Imported
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-xl border border-sky-200 bg-white text-center">
+                      <div className="text-2xl font-black text-sky-700">
+                        {importResult.updatedCount ?? 0}
+                      </div>
+                      <div className="text-[11px] font-bold uppercase text-slate-600 mt-0.5">
+                        Updated
                       </div>
                     </div>
                     <div className="p-4 rounded-xl border border-amber-200 bg-white text-center">
@@ -1196,6 +1204,8 @@ export const BulkRegistrationModal: React.FC<BulkRegistrationModalProps> = ({
                                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                                     o.result === 'Imported'
                                       ? 'bg-emerald-100 text-emerald-800'
+                                      : o.result === 'Updated'
+                                      ? 'bg-sky-100 text-sky-800'
                                       : o.result === 'Skipped'
                                       ? 'bg-amber-100 text-amber-800'
                                       : 'bg-rose-100 text-rose-800'

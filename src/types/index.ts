@@ -206,7 +206,7 @@ export type ProgressionType = 'Automatic Career Progression' | 'Competitive Seni
 
 export interface GradeLevel {
   id: number;
-  gradeName: string; // e.g. "Junior Clerk", "Director", "Director of Procurement and Supply Chain"
+  gradeName: string; // e.g. "Junior Clerk", "Director", "Director of Procurement and Supply Chain Manager"
   hierarchyRank: number; // internal ordering weight (1 to 25)
   minYearsInGradeForPromotion: number;
   monthlyBaseGhs: number;

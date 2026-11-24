@@ -5,11 +5,13 @@ import {
   CAPABILITY_HEADERS,
   SKILL_HEADERS,
   MEMBERSHIP_HEADERS,
+  ORG_HEADERS,
   ParsedWorkbookData,
   RawEmployeeRow,
   RawCapabilityRow,
   RawSkillRow,
   RawMembershipRow,
+  RawOrgRow,
 } from './types';
 
 function yieldToUi(): Promise<void> {
@@ -95,10 +97,14 @@ function validateSheetHeaders(
   alternateHeadersList?: (readonly string[])[]
 ): readonly string[] {
   const row1 = sheet.getRow(1);
+  // Header matching ignores the trailing '*' required-field marker so that
+  // templates downloaded before the mandatory/optional columns changed
+  // (e.g. "Telephone (+233)*" vs "Telephone (+233)") still validate.
+  const stripMarker = (h: string) => h.replace(/\*+\s*$/, '').trim();
   const matchesHeaderList = (list: readonly string[]): number => {
     for (let i = 0; i < list.length; i++) {
       const actual = extractCellString(row1.getCell(i + 1));
-      if (actual !== list[i]) return i;
+      if (stripMarker(actual) !== stripMarker(list[i])) return i;
     }
     return -1;
   };
@@ -144,6 +150,7 @@ export async function parseBulkRegistrationFile(
   const capSheet = workbook.getWorksheet(SHEET_NAMES.CAPABILITIES);
   const skillSheet = workbook.getWorksheet(SHEET_NAMES.SKILLS);
   const memSheet = workbook.getWorksheet(SHEET_NAMES.MEMBERSHIPS);
+  const orgSheet = workbook.getWorksheet(SHEET_NAMES.ORGS);
 
   if (!empSheet) {
     throw new Error(
@@ -171,6 +178,10 @@ export async function parseBulkRegistrationFile(
   validateSheetHeaders(skillSheet, SKILL_HEADERS, SHEET_NAMES.SKILLS);
   if (memSheet) {
     validateSheetHeaders(memSheet, MEMBERSHIP_HEADERS, SHEET_NAMES.MEMBERSHIPS);
+  }
+  // "MDA & Departments" is an optional worksheet — only validated when present
+  if (orgSheet) {
+    validateSheetHeaders(orgSheet, ORG_HEADERS, SHEET_NAMES.ORGS);
   }
 
   // Parse Employees Sheet
@@ -203,20 +214,20 @@ export async function parseBulkRegistrationFile(
       maritalStatus: rawValues['Marital Status'] || '',
       nationality: rawValues['Nationality'] || '',
       nationalIdentificationNumber: rawValues['Ghana Card (NIA)'] || '',
-      telephoneNumber: rawValues['Telephone (+233)*'] || '',
+      telephoneNumber: rawValues['Telephone (+233)'] || '',
       emailAddress: rawValues['Email'] || '',
       residentialAddress: rawValues['Residential Address'] || '',
       nextOfKinName: rawValues['Next of Kin Name'] || '',
       nextOfKinRelationship: rawValues['Next of Kin Relationship'] || '',
       nextOfKinPhone: rawValues['Next of Kin Phone'] || '',
       employeeCategory: rawValues['Staff Categorization*'] || '',
-      employmentType: rawValues['Employment Type'] || '',
+      employmentType: rawValues['Employment Type*'] || '',
       mda: rawValues['MDA*'] || '',
       department: rawValues['Department*'] || '',
       designation: rawValues['Designation*'] || '',
       gradeScale: rawValues['Grade Scale*'] || '',
       dateOfFirstAppointment: rawValues['First Appointment (DD/MM/YYYY)*'] || '',
-      dateOfAssumptionOfDuty: rawValues['Assumption of Duty (DD/MM/YYYY)*'] || '',
+      dateOfAssumptionOfDuty: rawValues['Assumption of Duty (DD/MM/YYYY)'] || '',
       salaryLevel: rawValues['Salary Level'] || '',
       salaryStep: rawValues['Salary Step (1-10)'] || '',
       qualificationLevel: rawValues['Qualification Level'] || '',
@@ -337,6 +348,26 @@ export async function parseBulkRegistrationFile(
     }
   }
 
+  // Parse optional MDA & Departments worksheet
+  const orgs: RawOrgRow[] = [];
+  if (orgSheet) {
+    onProgress?.('Extracting MDA & Department registrations...');
+    const orgRowCount = orgSheet.rowCount;
+    for (let r = 2; r <= orgRowCount; r++) {
+      const row = orgSheet.getRow(r);
+      const mdaCode = extractCellString(row.getCell(1));
+      const mdaName = extractCellString(row.getCell(2));
+      const mdaType = extractCellString(row.getCell(3));
+      const departmentCode = extractCellString(row.getCell(4));
+      const departmentName = extractCellString(row.getCell(5));
+      if (!mdaCode && !mdaName && !departmentCode && !departmentName) continue;
+
+      orgs.push({ rowNumber: r, mdaCode, mdaName, mdaType, departmentCode, departmentName });
+
+      if (r % 400 === 0) await yieldToUi();
+    }
+  }
+
   return {
     fileName: file.name,
     fileSizeBytes: file.size,
@@ -344,5 +375,6 @@ export async function parseBulkRegistrationFile(
     capabilities,
     skills,
     memberships,
+    orgs,
   };
 }

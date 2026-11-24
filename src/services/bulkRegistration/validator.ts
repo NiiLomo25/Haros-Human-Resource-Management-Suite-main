@@ -17,6 +17,7 @@ import {
   RawCapabilityRow,
   RawSkillRow,
   RawMembershipRow,
+  OrgUpsert,
 } from './types';
 
 function yieldToUi(): Promise<void> {
@@ -295,6 +296,12 @@ export async function validateParsedWorkbook(
     }
   });
 
+  // Active records may be updated via re-upload; deleted records stay blocked.
+  const activeStaffIdSet = new Set(activeEmployees.map((e) => e.staffId.trim().toUpperCase()));
+  const deletedStaffIdSet = new Set(
+    [...existingStaffIdSet].filter((id) => !activeStaffIdSet.has(id))
+  );
+
   // Lookup helpers for master data
   const mdaByKey = new Map<string, (typeof mdas)[number]>();
   mdas.forEach((m) => {
@@ -306,6 +313,227 @@ export async function validateParsedWorkbook(
   const gradeByKey = new Map<string, (typeof gradeLevels)[number]>();
   gradeLevels.forEach((g) => {
     gradeByKey.set(g.gradeName.toLowerCase(), g);
+  });
+  // Legacy grade-name aliases: earlier spellings in previously downloaded
+  // templates or hand-keyed uploads resolve to the renamed grade automatically.
+  const LEGACY_GRADE_ALIASES: Record<string, string> = {
+    'director of procurement and supply chain':
+      'director of procurement and supply chain manager',
+    'director of procurement & supply chain':
+      'director of procurement and supply chain manager',
+  };
+  Object.entries(LEGACY_GRADE_ALIASES).forEach(([alias, target]) => {
+    const g = gradeByKey.get(target);
+    if (g && !gradeByKey.has(alias)) gradeByKey.set(alias, g);
+  });
+
+  // ---------- MDA & Departments upsert registry ----------
+  // MDAs/Departments may be registered or updated via the optional
+  // "MDA & Departments" worksheet or inline on the Employees sheet.
+  const orgUpserts: OrgUpsert[] = [];
+  const orgUpsertKeys = new Set<string>();
+  const addOrgUpsert = (u: OrgUpsert) => {
+    const key =
+      u.kind === 'mda'
+        ? `mda:${u.code.trim().toLowerCase()}`
+        : `dept:${(u.mdaRef || '').trim().toLowerCase()}|${(u.code || u.name).trim().toLowerCase()}`;
+    if (orgUpsertKeys.has(key)) return;
+    orgUpsertKeys.add(key);
+    orgUpserts.push(u);
+  };
+
+  const ALL_MDA_TYPES = ['Ministry', 'Department', 'Agency', 'Commission'] as const;
+  const allMdas = db.getMdas();
+  const allDepartments = db.getDepartments();
+
+  interface PendingMda {
+    id: number; // -1 sentinel until import creates the record
+    code: string;
+    name: string;
+    mdaType: string;
+    isActive: boolean;
+  }
+  interface PendingDept {
+    id: number; // -1 sentinel
+    mdaId: number; // -1 when parent MDA is also pending
+    mdaKey: string; // lowercase parent MDA code used for lookups
+    departmentCode: string; // '' = auto-generate at import
+    departmentName: string;
+    status: 'Active' | 'Archived';
+  }
+  const pendingMdas: PendingMda[] = [];
+  const pendingDepts: PendingDept[] = [];
+  let nextPendingId = -1;
+
+  const pendingMdaByKey = new Map<string, PendingMda>();
+  const pendingDeptByKey = new Map<string, PendingDept>(); // `${mdaKey}|${nameOrCode}` lowercase
+
+  const indexPendingMda = (pm: PendingMda) => {
+    pendingMdaByKey.set(pm.code.trim().toLowerCase(), pm);
+    pendingMdaByKey.set(pm.name.trim().toLowerCase(), pm);
+    pendingMdaByKey.set(`${pm.code.trim().toLowerCase()} - ${pm.name.trim().toLowerCase()}`, pm);
+  };
+
+  const getOrCreatePendingMda = (code: string, name: string, mdaType: string): PendingMda => {
+    const existing = pendingMdaByKey.get(code.trim().toLowerCase()) || pendingMdaByKey.get(name.trim().toLowerCase());
+    if (existing) return existing;
+    const pm: PendingMda = { id: nextPendingId--, code: code.trim().toUpperCase(), name: name.trim(), mdaType, isActive: true };
+    pendingMdas.push(pm);
+    indexPendingMda(pm);
+    return pm;
+  };
+
+  const deptLookupKeys = (name: string, code: string) => {
+    const keys = [name.trim().toLowerCase()];
+    if (code.trim()) keys.push(code.trim().toLowerCase());
+    if (code.trim() && name.trim()) keys.push(`${code.trim().toLowerCase()} - ${name.trim().toLowerCase()}`);
+    return keys;
+  };
+
+  const indexPendingDept = (pd: PendingDept) => {
+    deptLookupKeys(pd.departmentName, pd.departmentCode).forEach((k) =>
+      pendingDeptByKey.set(`${pd.mdaKey}|${k}`, pd)
+    );
+  };
+
+  const getOrCreatePendingDept = (
+    parentMdaKey: string,
+    parentMdaId: number,
+    name: string,
+    code: string
+  ): PendingDept => {
+    for (const k of deptLookupKeys(name, code)) {
+      const hit = pendingDeptByKey.get(`${parentMdaKey}|${k}`);
+      if (hit) return hit;
+    }
+    const pd: PendingDept = {
+      id: nextPendingId--,
+      mdaId: parentMdaId,
+      mdaKey: parentMdaKey,
+      departmentCode: code.trim().toUpperCase(),
+      departmentName: name.trim(),
+      status: 'Active',
+    };
+    pendingDepts.push(pd);
+    indexPendingDept(pd);
+    return pd;
+  };
+
+  const orgIssues: ValidationIssue[] = [];
+
+  // Pass 1: register all MDAs declared on the org worksheet
+  parsed.orgs.forEach((o) => {
+    const code = o.mdaCode.trim();
+    const name = o.mdaName.trim();
+    if (!code || !name) {
+      orgIssues.push({
+        rowNumber: o.rowNumber,
+        staffId: '(Org Sheet)',
+        sheet: SHEET_NAMES.ORGS,
+        column: 'MDA Code* / MDA Name*',
+        severity: 'error',
+        message: 'Both MDA Code and MDA Name are required on the "MDA & Departments" sheet.',
+      });
+      return;
+    }
+    const typeRaw = o.mdaType.trim();
+    let mdaType = 'Agency';
+    if (typeRaw) {
+      const match = ALL_MDA_TYPES.find((t) => t.toLowerCase() === typeRaw.toLowerCase());
+      if (!match) {
+        orgIssues.push({
+          rowNumber: o.rowNumber,
+          staffId: '(Org Sheet)',
+          sheet: SHEET_NAMES.ORGS,
+          column: 'MDA Type',
+          severity: 'error',
+          message: `Invalid MDA Type "${o.mdaType}". Allowed: ${ALL_MDA_TYPES.join(', ')}.`,
+        });
+        return;
+      }
+      mdaType = match;
+    }
+
+    const existing = allMdas.find((m) => m.code.trim().toLowerCase() === code.toLowerCase());
+    if (existing) {
+      addOrgUpsert({ kind: 'mda', code: existing.code, name, mdaType, isNew: false, source: 'org_sheet' });
+      return;
+    }
+    const pm = getOrCreatePendingMda(code, name, mdaType);
+    addOrgUpsert({ kind: 'mda', code: pm.code, name: pm.name, mdaType: pm.mdaType, isNew: true, source: 'org_sheet' });
+  });
+
+  // Pass 2: register departments declared on the org worksheet
+  parsed.orgs.forEach((o) => {
+    const mdaCode = o.mdaCode.trim();
+    const mdaName = o.mdaName.trim();
+    const deptName = o.departmentName.trim();
+    const deptCode = o.departmentCode.trim();
+    if (!deptName && !deptCode) return; // MDA-only row
+    if (!deptName) {
+      orgIssues.push({
+        rowNumber: o.rowNumber,
+        staffId: '(Org Sheet)',
+        sheet: SHEET_NAMES.ORGS,
+        column: 'Department Name',
+        severity: 'error',
+        message: 'Department Name is required when a Department Code is provided.',
+      });
+      return;
+    }
+
+    // Resolve parent MDA: existing record or pending registration
+    const existingMda = allMdas.find((m) => m.code.trim().toLowerCase() === mdaCode.toLowerCase());
+    const pendingMda = pendingMdaByKey.get(mdaCode.toLowerCase()) || pendingMdaByKey.get(mdaName.toLowerCase());
+    if (!existingMda && !pendingMda) {
+      orgIssues.push({
+        rowNumber: o.rowNumber,
+        staffId: '(Org Sheet)',
+        sheet: SHEET_NAMES.ORGS,
+        column: 'MDA Code*',
+        severity: 'error',
+        message: `Department "${deptName}" references unknown MDA "${mdaCode}". Declare the MDA on this sheet or use an existing MDA code.`,
+      });
+      return;
+    }
+    const parentKey = (existingMda?.code || pendingMda!.code).trim().toLowerCase();
+    const parentId = existingMda ? existingMda.id : pendingMda!.id;
+
+    // Match existing department under this MDA (real MDAs only; pending parents can't have stored depts)
+    const existingDept =
+      parentId >= 0
+        ? allDepartments.find((d) => {
+            if (d.mdaId !== parentId) return false;
+            const dn = d.departmentName.trim().toLowerCase();
+            const dc = d.departmentCode.trim().toLowerCase();
+            const want = `${deptCode.trim().toLowerCase()} - ${deptName.trim().toLowerCase()}`;
+            return (
+              dn === deptName.toLowerCase() ||
+              (deptCode.trim().length > 0 && dc === deptCode.toLowerCase()) ||
+              (deptCode.trim().length > 0 && `${dc} - ${dn}` === want)
+            );
+          })
+        : undefined;
+    if (existingDept && parentId >= 0) {
+      addOrgUpsert({
+        kind: 'department',
+        code: existingDept.departmentCode || deptCode,
+        name: deptName,
+        mdaRef: existingMda!.code,
+        isNew: false,
+        source: 'org_sheet',
+      });
+      return;
+    }
+    const pd = getOrCreatePendingDept(parentKey, parentId, deptName, deptCode);
+    addOrgUpsert({
+      kind: 'department',
+      code: pd.departmentCode || deptName,
+      name: pd.departmentName,
+      mdaRef: existingMda ? existingMda.code : pendingMda!.code,
+      isNew: true,
+      source: 'org_sheet',
+    });
   });
 
   // Track Staff ID occurrences inside file (flag ALL duplicates!)
@@ -322,7 +550,7 @@ export async function validateParsedWorkbook(
 
   // Group and pre-validate Capabilities & Skills by Staff ID
   const capabilitiesByStaff = new Map<string, { items: string[]; errors: ValidationIssue[] }>();
-  const orphanIssues: ValidationIssue[] = [];
+  const orphanIssues: ValidationIssue[] = [...orgIssues];
 
   parsed.capabilities.forEach((capRow: RawCapabilityRow) => {
     const normId = normalizeStaffId(capRow.staffId);
@@ -649,6 +877,7 @@ export async function validateParsedWorkbook(
     const normStaffId = normalizeStaffId(row.staffId);
     const errors: ValidationIssue[] = [];
     const warnings: ValidationIssue[] = [];
+    let isUpdateRow = false; // Staff ID matches an existing ACTIVE record -> import updates it
 
     const addErr = (column: string, message: string) => {
       const issue: ValidationIssue = {
@@ -691,8 +920,17 @@ export async function validateParsedWorkbook(
           `Duplicate Staff ID "${normStaffId}" appears multiple times in this file (rows ${occ.join(', ')}).`
         );
       }
-      if (existingStaffIdSet.has(normStaffId)) {
-        addErr('Staff ID*', `Staff ID already exists in the Civil Service database ("${normStaffId}").`);
+      if (deletedStaffIdSet.has(normStaffId)) {
+        addErr(
+          'Staff ID*',
+          `Staff ID "${normStaffId}" belongs to a deleted employee record and cannot be imported.`
+        );
+      } else if (activeStaffIdSet.has(normStaffId)) {
+        isUpdateRow = true;
+        addWarn(
+          'Staff ID*',
+          `Staff ID "${normStaffId}" matches an existing active record — importing will UPDATE that record (blank optional cells keep saved values).`
+        );
       }
     }
 
@@ -760,11 +998,9 @@ export async function validateParsedWorkbook(
     }
 
     const normPhone = normalizeGhanaPhone(row.telephoneNumber);
-    if (!row.telephoneNumber.trim()) {
-      addErr('Telephone (+233)*', 'Telephone number is required.');
-    } else if (!normPhone) {
+    if (row.telephoneNumber.trim() && !normPhone) {
       addErr(
-        'Telephone (+233)*',
+        'Telephone (+233)',
         `Invalid Ghana telephone number "${row.telephoneNumber}". Provide +233 followed by 9 digits or a 10-digit 0XX number.`
       );
     }
@@ -800,11 +1036,13 @@ export async function validateParsedWorkbook(
     }
 
     let empType: EmploymentType = 'Permanent & Pensionable';
-    if (row.employmentType.trim()) {
+    if (!row.employmentType.trim()) {
+      addErr('Employment Type*', 'Employment Type is required.');
+    } else {
       const matchedType = matchEmploymentType(row.employmentType);
       if (!matchedType) {
         addErr(
-          'Employment Type',
+          'Employment Type*',
           `Invalid Employment Type "${row.employmentType}". Allowed: Permanent & Pensionable, Fixed-Term Contract, Casual.`
         );
       } else {
@@ -812,44 +1050,115 @@ export async function validateParsedWorkbook(
       }
     }
 
-    // 7. MDA & Department (must belong to MDA)
+    // 7. MDA & Department (must belong to MDA; unmatched values may register new orgs)
     const mdaRaw = row.mda.trim();
-    const matchedMda = mdaRaw ? mdaByKey.get(mdaRaw.toLowerCase()) : undefined;
+    let matchedMda: { id: number; code: string; name: string } | undefined = mdaRaw
+      ? mdaByKey.get(mdaRaw.toLowerCase())
+      : undefined;
+    if (!matchedMda && mdaRaw) {
+      matchedMda = pendingMdaByKey.get(mdaRaw.toLowerCase());
+    }
     if (!mdaRaw) {
       addErr('MDA*', 'Ministry / Agency (MDA) is required.');
     } else if (!matchedMda) {
-      addErr('MDA*', `MDA "${mdaRaw}" does not match any active Ministry/Agency in master data.`);
+      // Inline registration: "CODE - Full Name" registers a new MDA at import time
+      const sepIdx = mdaRaw.indexOf(' - ');
+      if (sepIdx > 0) {
+        const codePart = mdaRaw.slice(0, sepIdx).trim();
+        const namePart = mdaRaw.slice(sepIdx + 3).trim();
+        if (codePart && namePart) {
+          const pm = getOrCreatePendingMda(codePart, namePart, 'Agency');
+          addOrgUpsert({
+            kind: 'mda',
+            code: pm.code,
+            name: pm.name,
+            mdaType: pm.mdaType,
+            isNew: true,
+            source: 'employees_sheet',
+          });
+          matchedMda = pm;
+        }
+      }
+      if (!matchedMda) {
+        addErr(
+          'MDA*',
+          `MDA "${mdaRaw}" does not match any active Ministry/Agency in master data. To register a new MDA use the format "CODE - Full Name" (e.g. "NEWM - New Ministry").`
+        );
+      }
     }
 
     const deptRaw = row.department.trim();
-    let matchedDept: (typeof departments)[number] | undefined;
+    let matchedDept:
+      | { id: number; mdaId: number; departmentCode: string; departmentName: string; status: string }
+      | undefined;
     if (!deptRaw) {
       addErr('Department*', 'Department / Directorate is required.');
     } else if (matchedMda) {
-      const mdaDepts = departments.filter((d) => d.mdaId === matchedMda.id);
-      matchedDept = mdaDepts.find(
-        (d) =>
-          d.departmentName.toLowerCase() === deptRaw.toLowerCase() ||
-          d.departmentCode.toLowerCase() === deptRaw.toLowerCase() ||
-          `${d.departmentCode} - ${d.departmentName}`.toLowerCase() === deptRaw.toLowerCase()
-      );
-      if (!matchedDept) {
-        const otherDept = departments.find(
+      const mdaKey = matchedMda.code.trim().toLowerCase();
+      if (matchedMda.id >= 0) {
+        const mdaDepts = departments.filter((d) => d.mdaId === matchedMda.id);
+        matchedDept = mdaDepts.find(
           (d) =>
             d.departmentName.toLowerCase() === deptRaw.toLowerCase() ||
-            d.departmentCode.toLowerCase() === deptRaw.toLowerCase()
+            d.departmentCode.toLowerCase() === deptRaw.toLowerCase() ||
+            `${d.departmentCode} - ${d.departmentName}`.toLowerCase() === deptRaw.toLowerCase()
         );
-        if (otherDept) {
-          const ownerMda = mdas.find((m) => m.id === otherDept.mdaId);
-          addErr(
-            'Department*',
-            `Department "${deptRaw}" belongs to ${ownerMda ? `${ownerMda.code} - ${ownerMda.name}` : 'another MDA'}, not ${matchedMda.code}.`
+        if (!matchedDept) {
+          const otherDept = departments.find(
+            (d) =>
+              d.departmentName.toLowerCase() === deptRaw.toLowerCase() ||
+              d.departmentCode.toLowerCase() === deptRaw.toLowerCase()
           );
-        } else {
-          addErr(
-            'Department*',
-            `Department "${deptRaw}" was not found under ${matchedMda.code} (${matchedMda.name}).`
-          );
+          if (otherDept) {
+            const ownerMda = allMdas.find((m) => m.id === otherDept.mdaId);
+            addErr(
+              'Department*',
+              `Department "${deptRaw}" belongs to ${ownerMda ? `${ownerMda.code} - ${ownerMda.name}` : 'another MDA'}, not ${matchedMda.code}.`
+            );
+          } else {
+            // Departments pending registration for this MDA (org sheet or earlier rows)
+            for (const k of deptLookupKeys(deptRaw, '')) {
+              const pd = pendingDeptByKey.get(`${mdaKey}|${k}`);
+              if (pd) {
+                matchedDept = pd;
+                break;
+              }
+            }
+            if (!matchedDept) {
+              // Inline registration of a new department under this MDA
+              const pd = getOrCreatePendingDept(mdaKey, matchedMda.id, deptRaw, '');
+              addOrgUpsert({
+                kind: 'department',
+                code: pd.departmentName,
+                name: pd.departmentName,
+                mdaRef: matchedMda.code,
+                isNew: true,
+                source: 'employees_sheet',
+              });
+              matchedDept = pd;
+            }
+          }
+        }
+      } else {
+        // Parent MDA is pending registration — match or create pending departments
+        for (const k of deptLookupKeys(deptRaw, '')) {
+          const pd = pendingDeptByKey.get(`${mdaKey}|${k}`);
+          if (pd) {
+            matchedDept = pd;
+            break;
+          }
+        }
+        if (!matchedDept) {
+          const pd = getOrCreatePendingDept(mdaKey, matchedMda.id, deptRaw, '');
+          addOrgUpsert({
+            kind: 'department',
+            code: pd.departmentName,
+            name: pd.departmentName,
+            mdaRef: matchedMda.code,
+            isNew: true,
+            source: 'employees_sheet',
+          });
+          matchedDept = pd;
         }
       }
     } else {
@@ -895,21 +1204,23 @@ export async function validateParsedWorkbook(
       );
     }
 
-    const assumptionIso = parseCivilServiceDate(row.dateOfAssumptionOfDuty);
-    if (!row.dateOfAssumptionOfDuty.trim()) {
-      addErr('Assumption of Duty (DD/MM/YYYY)*', 'Assumption of Duty date is required.');
-    } else if (!assumptionIso) {
-      addErr(
-        'Assumption of Duty (DD/MM/YYYY)*',
-        `Invalid Assumption of Duty date "${row.dateOfAssumptionOfDuty}". Expected DD/MM/YYYY.`
-      );
-    }
-
-    if (firstApptIso && assumptionIso && assumptionIso < firstApptIso) {
-      addErr(
-        'Assumption of Duty (DD/MM/YYYY)*',
-        'Assumption of Duty date cannot be earlier than First Appointment date.'
-      );
+    // Assumption of Duty is optional; defaults to First Appointment when omitted
+    let assumptionIso: string | undefined = firstApptIso || undefined;
+    if (row.dateOfAssumptionOfDuty.trim()) {
+      const parsedAssumption = parseCivilServiceDate(row.dateOfAssumptionOfDuty);
+      if (!parsedAssumption) {
+        addErr(
+          'Assumption of Duty (DD/MM/YYYY)',
+          `Invalid Assumption of Duty date "${row.dateOfAssumptionOfDuty}". Expected DD/MM/YYYY.`
+        );
+      } else if (firstApptIso && parsedAssumption < firstApptIso) {
+        addErr(
+          'Assumption of Duty (DD/MM/YYYY)',
+          'Assumption of Duty date cannot be earlier than First Appointment date.'
+        );
+      } else {
+        assumptionIso = parsedAssumption;
+      }
     }
 
     if (dobIso && firstApptIso) {
@@ -1068,12 +1379,12 @@ export async function validateParsedWorkbook(
         const fileMatch = filePhoneMap.get(normPhone);
         if (dbMatch && dbMatch.toUpperCase() !== normStaffId) {
           addWarn(
-            'Telephone (+233)*',
+            'Telephone (+233)',
             `Possible duplicate person: phone ${normPhone} matches existing officer ${dbMatch} in database.`
           );
         } else if (fileMatch && fileMatch !== normStaffId) {
           addWarn(
-            'Telephone (+233)*',
+            'Telephone (+233)',
             `Possible duplicate person: phone ${normPhone} matches earlier row with Staff ID ${fileMatch} in this file.`
           );
         } else {
@@ -1149,7 +1460,6 @@ export async function validateParsedWorkbook(
       normStaffId &&
       dobIso &&
       gender &&
-      normPhone &&
       category &&
       matchedMda &&
       matchedDept &&
@@ -1178,13 +1488,13 @@ export async function validateParsedWorkbook(
           nationality: row.nationality.trim() || 'Ghanaian',
           nationalIdentificationNumber: normNin,
           residentialAddress: row.residentialAddress.trim() || 'Accra, Greater Accra',
-          telephoneNumber: normPhone,
+          telephoneNumber: normPhone || '',
           emailAddress: emailRaw || fallbackEmail,
           emergencyContactName: row.nextOfKinName.trim() || 'Family Member',
-          emergencyContactPhone: normNokPhone || normPhone,
+          emergencyContactPhone: normNokPhone || normPhone || '',
           nextOfKinName: nokName,
           nextOfKinRelationship: row.nextOfKinRelationship.trim() || 'Spouse',
-          nextOfKinPhone: normNokPhone || normPhone,
+          nextOfKinPhone: normNokPhone || normPhone || '',
           otherContacts: normOtherContacts.length > 0 ? normOtherContacts : undefined,
         },
         employment: {
@@ -1238,7 +1548,9 @@ export async function validateParsedWorkbook(
       status,
       errors,
       warnings,
-      warningAction: 'skip', // Safe default for duplicate warnings
+      // Update rows default to 'import' so re-uploads aren't silently skipped;
+      // any additional warnings keep the safe 'skip' default for user choice.
+      warningAction: isUpdateRow && warnings.length === 1 ? 'import' : 'skip',
       rawRow: row,
       normalized,
     });
@@ -1257,6 +1569,7 @@ export async function validateParsedWorkbook(
     rows: validatedRows,
     orphanIssues,
     allIssues,
+    orgUpserts,
     summary: {
       totalRows: validatedRows.length,
       validCount,

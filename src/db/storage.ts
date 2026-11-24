@@ -307,10 +307,41 @@ export class DatabaseService {
     return localStorage.getItem(STORAGE_PREFIX + 'factoryWiped') === 'true';
   }
 
+  /**
+   * Merges INITIAL_GRADE_LEVELS into the persisted gradeLevels table by id/gradeName,
+   * preserving custom grades and existing IDs. Safe to call after snapshot restores.
+   */
+  private mergeDefaultGradeLevels(): GradeLevel[] {
+    const existingGrades = this.getItem<any[]>('gradeLevels', []);
+    const mergedGrades: GradeLevel[] = [];
+    INITIAL_GRADE_LEVELS.forEach((newG) => {
+      const existing = existingGrades.find(
+        (eg) => eg.id === newG.id || eg.gradeName === newG.gradeName
+      );
+      const base = existing ? { ...existing } : { ...newG };
+      delete base.gradeCode;
+      mergedGrades.push({
+        ...base,
+        gradeName: newG.gradeName,
+        minYearsInGradeForPromotion: newG.minYearsInGradeForPromotion,
+        progressionMode: newG.progressionMode,
+        isSeniorManagement: newG.isSeniorManagement,
+      });
+    });
+    existingGrades.forEach((eg) => {
+      if (!mergedGrades.some((mg) => mg.id === eg.id || mg.gradeName === eg.gradeName)) {
+        const cleaned = { ...eg };
+        delete cleaned.gradeCode;
+        mergedGrades.push(cleaned);
+      }
+    });
+    this.setItem('gradeLevels', mergedGrades);
+    return mergedGrades;
+  }
+
   public ensureInitialized(): void {
     const storedEmployment = this.getItem<EmployeeEmploymentInfo[]>('employmentInfo', []);
     const hasOldCategories = storedEmployment.some((e: any) => e.employeeCategory === 'Civil Service');
-    const existingGrades = this.getItem<any[]>('gradeLevels', []);
     const existingCapabilities = this.getItem<EmployeeTrainingCapability[]>('trainingCapabilities', []);
     const existingSkills = this.getItem<EmployeeSkill[]>('skills', []);
 
@@ -318,29 +349,7 @@ export class DatabaseService {
       this.resetDatabase();
     } else {
       // Synchronize grade levels cleanly and strip any legacy gradeCode properties from persisted records
-      const mergedGrades: GradeLevel[] = [];
-      INITIAL_GRADE_LEVELS.forEach((newG) => {
-        const existing = existingGrades.find(
-          (eg) => eg.id === newG.id || eg.gradeName === newG.gradeName
-        );
-        const base = existing ? { ...existing } : { ...newG };
-        delete base.gradeCode;
-        mergedGrades.push({
-          ...base,
-          gradeName: newG.gradeName,
-          minYearsInGradeForPromotion: newG.minYearsInGradeForPromotion,
-          progressionMode: newG.progressionMode,
-          isSeniorManagement: newG.isSeniorManagement,
-        });
-      });
-      existingGrades.forEach((eg) => {
-        if (!mergedGrades.some((mg) => mg.id === eg.id || mg.gradeName === eg.gradeName)) {
-          const cleaned = { ...eg };
-          delete cleaned.gradeCode;
-          mergedGrades.push(cleaned);
-        }
-      });
-      this.setItem('gradeLevels', mergedGrades);
+      const mergedGrades = this.mergeDefaultGradeLevels();
 
       const legacyCodeToTitle: Record<string, string> = {
         L1: 'Junior Clerk',
@@ -357,7 +366,7 @@ export class DatabaseService {
         L20: 'Chief Director',
         L16P: 'Principal Officer',
         L18C: 'Chief Officer',
-        '24L': 'Director of Procurement and Supply Chain',
+        '24L': 'Director of Procurement and Supply Chain Manager',
         '23L': 'Chief Procurement and Supply Chain Manager',
         '21L': 'Principal Procurement and Supply Chain Manager',
         '15L': 'Procurement and Supply Chain Officer',
@@ -1421,7 +1430,7 @@ export class DatabaseService {
   ): {
     staffId: string;
     fullName: string;
-    result: 'Imported' | 'Skipped' | 'Failed';
+    result: 'Imported' | 'Updated' | 'Skipped' | 'Failed';
     reason: string;
   }[] {
     this.assertActorPermission('STAFF_CREATE', 'Bulk Import Staff Records', username);
@@ -1448,7 +1457,7 @@ export class DatabaseService {
     const outcomes: {
       staffId: string;
       fullName: string;
-      result: 'Imported' | 'Skipped' | 'Failed';
+      result: 'Imported' | 'Updated' | 'Skipped' | 'Failed';
       reason: string;
     }[] = [];
 
@@ -1470,6 +1479,200 @@ export class DatabaseService {
         continue;
       }
 
+      // Compute Statutory Retirement Date (Min of DOB + 60 or FirstAppt + 35)
+      const dob = new Date(data.personal.dateOfBirth);
+      const appt = new Date(data.employment.dateOfFirstAppointment);
+      const retByAge = new Date(dob);
+      retByAge.setFullYear(retByAge.getFullYear() + 60);
+      const retByService = new Date(appt);
+      retByService.setFullYear(retByService.getFullYear() + 35);
+      const statutoryRetDate = retByAge < retByService ? retByAge : retByService;
+      const statutoryRetirementDate = statutoryRetDate.toISOString().split('T')[0];
+
+      // Existing Staff ID: update the ACTIVE record (blank-cell merge already
+      // applied by the importer); deleted records remain blocked.
+      const existingEmp = employees.find(
+        (e) => e.staffId.trim().toUpperCase() === cleanStaffId
+      );
+      if (existingEmp) {
+        if (existingEmp.isDeleted) {
+          outcomes.push({
+            staffId: cleanStaffId,
+            fullName,
+            result: 'Failed',
+            reason: `Staff ID "${cleanStaffId}" belongs to a deleted employee record and cannot be updated.`,
+          });
+          continue;
+        }
+
+        try {
+          const empId = existingEmp.id;
+          existingEmp.modifiedDate = nowIso;
+          existingEmp.modifiedBy = username;
+
+          const newPersonal: EmployeePersonalInfo = {
+            ...data.personal,
+            id: 0,
+            employeeId: empId,
+            fullName,
+          };
+          const pIdx = personalList.findIndex((p) => p.employeeId === empId);
+          if (pIdx >= 0) {
+            newPersonal.id = personalList[pIdx].id;
+            personalList[pIdx] = newPersonal;
+          } else {
+            newPersonal.id = nextPersonalId++;
+            personalList.push(newPersonal);
+          }
+
+          const newEmployment: EmployeeEmploymentInfo = {
+            ...data.employment,
+            id: 0,
+            employeeId: empId,
+            statutoryRetirementDate,
+          };
+          const eIdx = employmentList.findIndex((e) => e.employeeId === empId);
+          if (eIdx >= 0) {
+            newEmployment.id = employmentList[eIdx].id;
+            employmentList[eIdx] = newEmployment;
+          } else {
+            newEmployment.id = nextEmploymentId++;
+            employmentList.push(newEmployment);
+          }
+
+          const hasExistingQual = qualifications.some((q) => q.employeeId === empId);
+          if (!hasExistingQual && data.initialQualification && data.initialQualification.qualificationTitle) {
+            qualifications.push({
+              ...data.initialQualification,
+              id: nextQualId++,
+              employeeId: empId,
+            });
+          }
+
+          const existingMemKeys = new Set(
+            membershipsList
+              .filter((m) => m.employeeId === empId)
+              .map((m) => `${m.professionalBody.toLowerCase()}::${m.membershipNumber.toLowerCase()}`)
+          );
+          const seenMembershipKeys = new Set(existingMemKeys);
+          let cleanMembershipsCount = 0;
+          const todayIso = nowIso.split('T')[0];
+          for (const m of data.memberships || []) {
+            const body = (m.professionalBody || '').trim();
+            const num = (m.membershipNumber || '').trim();
+            if (!body || !num) continue;
+            const key = `${body.toLowerCase()}::${num.toLowerCase()}`;
+            if (seenMembershipKeys.has(key)) continue;
+            seenMembershipKeys.add(key);
+
+            membershipsList.push({
+              id: nextMembershipId++,
+              employeeId: empId,
+              professionalBody: body,
+              membershipNumber: num,
+              membershipCategory: (m.membershipCategory || '').trim() || 'Full Member',
+              registrationDate: (m.registrationDate || '').trim() || todayIso,
+              expiryDate: m.expiryDate?.trim() || undefined,
+              membershipStatus: m.membershipStatus || 'Active',
+            });
+            cleanMembershipsCount++;
+            if (cleanMembershipsCount >= 10) break;
+          }
+
+          const existingCapKeys = new Set(
+            capabilitiesList
+              .filter((c) => c.employeeId === empId)
+              .map((c) => c.capability.trim().toLowerCase())
+          );
+          const cleanCaps = (data.trainingCapabilities || [])
+            .map((c) => c.trim())
+            .filter((c) => c.length > 0 && !existingCapKeys.has(c.toLowerCase()))
+            .slice(0, 10);
+
+          cleanCaps.forEach((capability) => {
+            capabilitiesList.push({
+              id: nextCapId++,
+              employeeId: empId,
+              capability,
+              createdAt: nowIso,
+              updatedAt: nowIso,
+            });
+          });
+
+          const existingSkillKeys = new Set(
+            skillsList
+              .filter((s) => s.employeeId === empId)
+              .map((s) => s.skillName.trim().toLowerCase())
+          );
+          const seenSkillNames = new Set(existingSkillKeys);
+          const cleanSkills: { skillName: string; category: SkillCategory; evidence: string }[] = [];
+          for (const s of data.skills || []) {
+            const name = s.skillName.trim();
+            if (!name) continue;
+            const key = name.toLowerCase();
+            if (seenSkillNames.has(key)) continue;
+            seenSkillNames.add(key);
+            cleanSkills.push({
+              skillName: name,
+              category: s.category,
+              evidence: (s.evidence || '').trim(),
+            });
+            skillsList.push({
+              id: nextSkillId++,
+              employeeId: empId,
+              skillName: name,
+              category: s.category,
+              evidence: (s.evidence || '').trim(),
+              createdAt: nowIso,
+              updatedAt: nowIso,
+            });
+            if (cleanSkills.length >= 10) break;
+          }
+
+          auditLogs.push({
+            id: nextAuditId++,
+            userId: 1,
+            username: username || 'admin',
+            machineName: 'WIN11-HR-NODE01',
+            ipOrHost: '127.0.0.1 (Local Standalone)',
+            module: 'Staff Registration',
+            actionType: 'UPDATE',
+            entityName: 'Employees',
+            recordId: existingEmp.staffId,
+            newValuesJson: JSON.stringify({
+              staffId: existingEmp.staffId,
+              fullName,
+              mdaId: newEmployment.currentMdaId,
+              departmentId: newEmployment.currentDepartmentId,
+              gradeId: newEmployment.currentGradeId,
+              category: newEmployment.employeeCategory,
+              retirementDate: statutoryRetirementDate,
+              membershipsAdded: cleanMembershipsCount,
+              capabilitiesAdded: cleanCaps.length,
+              skillsAdded: cleanSkills.length,
+              source: 'Bulk Upload',
+              batchId,
+            }),
+            timestampUtc: nowIso,
+          });
+
+          outcomes.push({
+            staffId: cleanStaffId,
+            fullName,
+            result: 'Updated',
+            reason: `Existing active record updated successfully (Retirement: ${statutoryRetirementDate}).`,
+          });
+        } catch (err: any) {
+          outcomes.push({
+            staffId: cleanStaffId,
+            fullName,
+            result: 'Failed',
+            reason: err?.message || 'Unexpected error while updating record.',
+          });
+        }
+        continue;
+      }
+
       // Re-check uniqueness against database right before saving; never overwrite
       if (existingIdSet.has(cleanStaffId)) {
         outcomes.push({
@@ -1482,16 +1685,6 @@ export class DatabaseService {
       }
 
       try {
-        // Compute Statutory Retirement Date (Min of DOB + 60 or FirstAppt + 35)
-        const dob = new Date(data.personal.dateOfBirth);
-        const appt = new Date(data.employment.dateOfFirstAppointment);
-        const retByAge = new Date(dob);
-        retByAge.setFullYear(retByAge.getFullYear() + 60);
-        const retByService = new Date(appt);
-        retByService.setFullYear(retByService.getFullYear() + 35);
-        const statutoryRetDate = retByAge < retByService ? retByAge : retByService;
-        const statutoryRetirementDate = statutoryRetDate.toISOString().split('T')[0];
-
         const empId = nextEmpId++;
         existingIdSet.add(cleanStaffId);
 
@@ -1650,19 +1843,21 @@ export class DatabaseService {
     this.setItem('auditLogs', auditLogs);
 
     const importedCount = outcomes.filter((o) => o.result === 'Imported').length;
+    const updatedCount = outcomes.filter((o) => o.result === 'Updated').length;
     const skippedCount = outcomes.filter((o) => o.result === 'Skipped').length;
     const failedCount = outcomes.filter((o) => o.result === 'Failed').length;
+    const totalWritten = importedCount + updatedCount;
 
-    if (importedCount > 0 && skippedCount === 0 && failedCount === 0) {
+    if (totalWritten > 0 && skippedCount === 0 && failedCount === 0) {
       notificationService.success(
         'Bulk Staff Import Completed',
-        `Successfully imported ${importedCount} personnel record(s) into the nominal roll.`,
+        `Successfully imported ${importedCount} and updated ${updatedCount} personnel record(s) in the nominal roll.`,
         { module: 'Staff Registration', actor: username }
       );
-    } else if (importedCount > 0) {
+    } else if (totalWritten > 0) {
       notificationService.warning(
         'Bulk Import Completed with Exceptions',
-        `Imported ${importedCount}, skipped ${skippedCount} duplicate(s), and encountered ${failedCount} failure(s).`,
+        `Imported ${importedCount}, updated ${updatedCount}, skipped ${skippedCount} duplicate(s), and encountered ${failedCount} failure(s).`,
         { module: 'Staff Registration', actor: username }
       );
     } else {
@@ -2823,7 +3018,7 @@ export class DatabaseService {
     'Senior Procurement & Supply Chain Manager',
     'Principal Procurement & Supply Chain Manager',
     'Chief Procurement & Supply Chain Manager',
-    'Director of Procurement & Supply Chain',
+    'Director of Procurement & Supply Chain Manager',
   ];
 
   /**
@@ -4982,6 +5177,11 @@ export class DatabaseService {
           tablesRestored++;
         }
       }
+
+      // Re-sync default Civil Service grade levels so newly added grades
+      // (e.g. Principal Procurement Manager) appear even when restoring
+      // snapshots captured before they existed.
+      this.mergeDefaultGradeLevels();
 
       this.ensureRoutePermissionsInitialized(true);
       this.notifySettingsUpdated();

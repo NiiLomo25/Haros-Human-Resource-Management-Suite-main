@@ -11,6 +11,7 @@ export const SHEET_NAMES = {
   CAPABILITIES: 'Training Capabilities',
   SKILLS: 'Skills',
   MEMBERSHIPS: 'Professional Memberships',
+  ORGS: 'MDA & Departments',
   LISTS: 'Lists',
   INSTRUCTIONS: 'Instructions',
 } as const;
@@ -25,20 +26,20 @@ export const EMPLOYEE_HEADERS = [
   'Marital Status',
   'Nationality',
   'Ghana Card (NIA)',
-  'Telephone (+233)*',
+  'Telephone (+233)',
   'Email',
   'Residential Address',
   'Next of Kin Name',
   'Next of Kin Relationship',
   'Next of Kin Phone',
   'Staff Categorization*',
-  'Employment Type',
+  'Employment Type*',
   'MDA*',
   'Department*',
   'Designation*',
   'Grade Scale*',
   'First Appointment (DD/MM/YYYY)*',
-  'Assumption of Duty (DD/MM/YYYY)*',
+  'Assumption of Duty (DD/MM/YYYY)',
   'Salary Level',
   'Salary Step (1-10)',
   'Qualification Level',
@@ -49,6 +50,14 @@ export const EMPLOYEE_HEADERS = [
   'First Grade (Entry Grade)',
   'Current Promotion Date (DD/MM/YYYY)',
   'Previous Posting',
+] as const;
+
+export const ORG_HEADERS = [
+  'MDA Code*',
+  'MDA Name*',
+  'MDA Type',
+  'Department Code',
+  'Department Name',
 ] as const;
 
 export const CAPABILITY_HEADERS = [
@@ -141,6 +150,15 @@ export interface RawMembershipRow {
   membershipStatus: string;
 }
 
+export interface RawOrgRow {
+  rowNumber: number;
+  mdaCode: string;
+  mdaName: string;
+  mdaType: string;
+  departmentCode: string;
+  departmentName: string;
+}
+
 export interface ParsedWorkbookData {
   fileName: string;
   fileSizeBytes: number;
@@ -148,6 +166,21 @@ export interface ParsedWorkbookData {
   capabilities: RawCapabilityRow[];
   skills: RawSkillRow[];
   memberships: RawMembershipRow[];
+  orgs: RawOrgRow[];
+}
+
+/** An MDA or Department that must be created/updated in master data before employees import. */
+export interface OrgUpsert {
+  kind: 'mda' | 'department';
+  /** Match key for existing records: MDA code, or department code within its MDA. */
+  code: string;
+  name: string;
+  /** For departments: the parent MDA code (or 'CODE - Name' label) resolved at import time. */
+  mdaRef?: string;
+  mdaType?: string;
+  /** True when no existing record matches — import must create it. */
+  isNew: boolean;
+  source: 'org_sheet' | 'employees_sheet';
 }
 
 export interface ValidationIssue {
@@ -188,9 +221,9 @@ export interface NormalizedEmployeeRecord {
     dateOfFirstAppointment: string; // YYYY-MM-DD
     dateOfAssumptionOfDuty: string; // YYYY-MM-DD
     currentEmploymentStatus: 'Active';
-    currentMdaId: number;
+    currentMdaId: number; // -1 when the MDA must be registered by the import first
     mdaLabel: string;
-    currentDepartmentId: number;
+    currentDepartmentId: number; // -1 when the Department must be registered by the import first
     departmentLabel: string;
     currentPositionTitle: string;
     currentGradeId: number;
@@ -248,6 +281,8 @@ export interface ValidationReport {
   rows: ValidatedEmployeeRow[];
   orphanIssues: ValidationIssue[]; // Issues from Capabilities / Skills sheets referencing unknown Staff IDs
   allIssues: ValidationIssue[];
+  /** MDAs/Departments that must be upserted into master data during import. */
+  orgUpserts: OrgUpsert[];
   summary: {
     totalRows: number;
     validCount: number;
@@ -259,7 +294,7 @@ export interface ValidationReport {
   };
 }
 
-export type ImportOutcomeStatus = 'Imported' | 'Skipped' | 'Failed';
+export type ImportOutcomeStatus = 'Imported' | 'Updated' | 'Skipped' | 'Failed';
 
 export interface ImportRowOutcome {
   rowNumber: number;
@@ -281,6 +316,7 @@ export interface ImportProgress {
 
 export interface ImportResultSummary {
   importedCount: number;
+  updatedCount: number;
   skippedCount: number;
   failedCount: number;
   outcomes: ImportRowOutcome[];

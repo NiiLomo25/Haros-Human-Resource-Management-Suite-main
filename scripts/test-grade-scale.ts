@@ -60,12 +60,12 @@ const baseEmp = (staffId: string, gradeName: string) => ({
   personal: {
     surname: 'Test', firstName: staffId, fullName: `Test ${staffId}`, dateOfBirth: '1990-01-01',
     gender: 'Male' as const, maritalStatus: 'Single' as const, nationality: 'Ghanaian',
-    residentialAddress: 'Accra', telephoneNumber: '+233 24 000 0001',
+    residentialAddress: 'Accra', telephoneNumber: '+233 24 000 0001', emailAddress: `${staffId.toLowerCase()}@x.gov.gh`,
     emergencyContactName: 'X', emergencyContactPhone: '+233 24 000 0001',
     nextOfKinName: 'X', nextOfKinRelationship: 'Brother', nextOfKinPhone: '+233 24 000 0001',
   },
   employment: {
-    employeeCategory: 'Civil Service' as const, employmentType: 'Permanent & Pensionable' as const,
+    employeeCategory: 'Sub-Professional' as const, employmentType: 'Permanent & Pensionable' as const,
     dateOfFirstAppointment: '2020-01-01', dateOfAssumptionOfDuty: '2020-01-01',
     currentEmploymentStatus: 'Active' as const, currentMdaId: mda.id, currentDepartmentId: dept.id,
     currentPositionTitle: 'Officer', currentGradeId: byName(gradeName)!.id, currentSalaryLevel: 10, currentSalaryStep: 1,
