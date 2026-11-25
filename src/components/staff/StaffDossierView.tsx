@@ -60,6 +60,7 @@ import {
 } from './TrainingAndSkillsEditor';
 import { StaffRegistrationModal } from './StaffRegistrationModal';
 import { SlideOverPanel } from '../common/SlideOverPanel';
+import { SearchableSelect } from '../common/SearchableSelect';
 import { printPage } from '../../services/printService';
 
 interface StaffDossierViewProps {
@@ -1734,15 +1735,22 @@ export const StaffDossierView: React.FC<StaffDossierViewProps> = ({
           <div className="flex-1 overflow-y-auto p-5 space-y-3">
             <div>
               <label className="block text-slate-600 mb-1 font-semibold">Qualification Level</label>
-              <select name="level" className="w-full h-8 px-2 border rounded bg-white">
-                <option value="Bachelor">Bachelor's Degree</option>
-                <option value="Master">Master's Degree</option>
-                <option value="Doctorate">Doctorate (PhD)</option>
-                <option value="HND">Higher National Diploma (HND)</option>
-                <option value="Diploma">Diploma</option>
-                <option value="WASSCE">WASSCE</option>
-                <option value="Professional">Professional Certification</option>
-              </select>
+              <SearchableSelect
+                name="level"
+                defaultValue="Bachelor"
+                options={[
+                  { value: 'Bachelor', label: "Bachelor's Degree" },
+                  { value: 'Master', label: "Master's Degree" },
+                  { value: 'Doctorate', label: 'Doctorate (PhD)' },
+                  { value: 'HND', label: 'Higher National Diploma (HND)' },
+                  { value: 'Diploma', label: 'Diploma' },
+                  { value: 'WASSCE', label: 'WASSCE' },
+                  { value: 'Professional', label: 'Professional Certification' },
+                ]}
+                placeholder="Select level..."
+                searchPlaceholder="Filter levels..."
+                buttonClassName="w-full h-8 px-2 border border-slate-300 rounded bg-white text-xs"
+              />
             </div>
             <div>
               <label className="block text-slate-600 mb-1 font-semibold">Qualification Title *</label>
@@ -1866,15 +1874,22 @@ export const StaffDossierView: React.FC<StaffDossierViewProps> = ({
           <div className="flex-1 overflow-y-auto p-5 space-y-3">
             <div>
               <label className="block text-slate-600 mb-1 font-semibold">Document Category *</label>
-              <select name="category" className="w-full h-8 px-2 border rounded bg-white">
-                <option value="Appointment Letter">Appointment Letter</option>
-                <option value="Promotion Letter">Promotion Letter</option>
-                <option value="Transfer Letter">Transfer Letter</option>
-                <option value="Academic Certificate">Academic Certificate</option>
-                <option value="Confirmation Letter">Confirmation Letter</option>
-                <option value="Performance Appraisal">Performance Appraisal</option>
-                <option value="Other">Other Civil Service Record</option>
-              </select>
+              <SearchableSelect
+                name="category"
+                defaultValue="Appointment Letter"
+                options={[
+                  { value: 'Appointment Letter', label: 'Appointment Letter' },
+                  { value: 'Promotion Letter', label: 'Promotion Letter' },
+                  { value: 'Transfer Letter', label: 'Transfer Letter' },
+                  { value: 'Academic Certificate', label: 'Academic Certificate' },
+                  { value: 'Confirmation Letter', label: 'Confirmation Letter' },
+                  { value: 'Performance Appraisal', label: 'Performance Appraisal' },
+                  { value: 'Other', label: 'Other Civil Service Record' },
+                ]}
+                placeholder="Select category..."
+                searchPlaceholder="Filter categories..."
+                buttonClassName="w-full h-8 px-2 border border-slate-300 rounded bg-white text-xs"
+              />
             </div>
             <div>
               <label className="block text-slate-600 mb-1 font-semibold">Document Title / Subject *</label>
@@ -2026,19 +2041,22 @@ export const StaffDossierView: React.FC<StaffDossierViewProps> = ({
             <div className="flex-1 overflow-y-auto p-5 space-y-3">
               <div>
                 <label className="block text-slate-600 mb-1 font-semibold">Qualification Level</label>
-                <select
+                <SearchableSelect
                   name="level"
                   defaultValue={editingQual.qualificationLevel}
-                  className="w-full h-8 px-2 border rounded bg-white"
-                >
-                  <option value="Bachelor">Bachelor's Degree</option>
-                  <option value="Master">Master's Degree</option>
-                  <option value="Doctorate">Doctorate (PhD)</option>
-                  <option value="HND">Higher National Diploma (HND)</option>
-                  <option value="Diploma">Diploma</option>
-                  <option value="WASSCE">WASSCE</option>
-                  <option value="Professional">Professional Certification</option>
-                </select>
+                  options={[
+                    { value: 'Bachelor', label: "Bachelor's Degree" },
+                    { value: 'Master', label: "Master's Degree" },
+                    { value: 'Doctorate', label: 'Doctorate (PhD)' },
+                    { value: 'HND', label: 'Higher National Diploma (HND)' },
+                    { value: 'Diploma', label: 'Diploma' },
+                    { value: 'WASSCE', label: 'WASSCE' },
+                    { value: 'Professional', label: 'Professional Certification' },
+                  ]}
+                  placeholder="Select level..."
+                  searchPlaceholder="Filter levels..."
+                  buttonClassName="w-full h-8 px-2 border border-slate-300 rounded bg-white text-xs"
+                />
               </div>
               <div>
                 <label className="block text-slate-600 mb-1 font-semibold">Qualification Title *</label>
@@ -2088,15 +2106,18 @@ export const StaffDossierView: React.FC<StaffDossierViewProps> = ({
               </div>
               <div>
                 <label className="block text-slate-600 mb-1 font-semibold">Verification Status</label>
-                <select
+                <SearchableSelect
                   name="verificationStatus"
                   defaultValue={editingQual.verificationStatus}
-                  className="w-full h-8 px-2 border rounded bg-white"
-                >
-                  <option value="Verified">Verified</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Rejected">Rejected</option>
-                </select>
+                  options={[
+                    { value: 'Verified', label: 'Verified' },
+                    { value: 'Pending', label: 'Pending' },
+                    { value: 'Rejected', label: 'Rejected' },
+                  ]}
+                  placeholder="Select status..."
+                  searchPlaceholder="Filter statuses..."
+                  buttonClassName="w-full h-8 px-2 border border-slate-300 rounded bg-white text-xs"
+                />
               </div>
             </div>
             <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex justify-end space-x-2 shrink-0">
@@ -2232,15 +2253,18 @@ export const StaffDossierView: React.FC<StaffDossierViewProps> = ({
                 </div>
                 <div>
                   <label className="block text-slate-600 mb-1 font-semibold">Status</label>
-                  <select
+                  <SearchableSelect
                     name="membershipStatus"
                     defaultValue={editingMember.membershipStatus}
-                    className="w-full h-8 px-2 border rounded bg-white"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Lapsed">Lapsed</option>
-                    <option value="Suspended">Suspended</option>
-                  </select>
+                    options={[
+                      { value: 'Active', label: 'Active' },
+                      { value: 'Lapsed', label: 'Lapsed' },
+                      { value: 'Suspended', label: 'Suspended' },
+                    ]}
+                    placeholder="Select status..."
+                    searchPlaceholder="Filter statuses..."
+                    buttonClassName="w-full h-8 px-2 border border-slate-300 rounded bg-white text-xs"
+                  />
                 </div>
               </div>
             </div>

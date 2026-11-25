@@ -18,9 +18,10 @@ export interface SearchableSelectOption {
 export interface SearchableSelectProps {
   id?: string;
   name?: string;
-  value: string | number;
+  value?: string | number;
+  defaultValue?: string | number;
   options: SearchableSelectOption[];
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   placeholder?: string;
   searchPlaceholder?: string;
   disabled?: boolean;
@@ -35,6 +36,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   id,
   name,
   value,
+  defaultValue,
   options,
   onChange,
   placeholder = 'Select option...',
@@ -49,6 +51,11 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState<number>(0);
+  // Uncontrolled mode: internal value used when `value` prop is not supplied.
+  const [internalValue, setInternalValue] = useState<string>(
+    defaultValue !== undefined ? String(defaultValue) : ''
+  );
+  const effectiveValue = value !== undefined ? value : internalValue;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -56,8 +63,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   // Selected Option Object
   const selectedOption = useMemo(() => {
-    return options.find((opt) => String(opt.value) === String(value));
-  }, [options, value]);
+    return options.find((opt) => String(opt.value) === String(effectiveValue));
+  }, [options, effectiveValue]);
 
   // Dynamically Filtered Options
   const filteredOptions = useMemo(() => {
@@ -139,7 +146,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   };
 
   const handleSelect = (val: string | number) => {
-    onChange(String(val));
+    const strVal = String(val);
+    setInternalValue(strVal);
+    onChange?.(strVal);
     setIsOpen(false);
     setSearchQuery('');
   };
@@ -156,7 +165,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           type="hidden"
           name={name}
           id={id}
-          value={value !== undefined ? String(value) : ''}
+          value={effectiveValue !== undefined && effectiveValue !== '' ? String(effectiveValue) : ''}
           required={required}
         />
       )}
@@ -238,7 +247,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           >
             {filteredOptions.length > 0 ? (
               filteredOptions.map((opt, idx) => {
-                const isSelected = String(opt.value) === String(value);
+                const isSelected = String(opt.value) === String(effectiveValue);
                 const isHighlighted = idx === highlightedIndex;
 
                 return (

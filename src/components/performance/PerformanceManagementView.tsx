@@ -38,6 +38,7 @@ import {
   Department,
 } from '../../types';
 import { SlideOverPanel } from '../common/SlideOverPanel';
+import { SearchableSelect } from '../common/SearchableSelect';
 
 interface PerformanceManagementViewProps {
   onSelectEmployee?: (empId: number) => void;
@@ -390,53 +391,61 @@ export const PerformanceManagementView: React.FC<PerformanceManagementViewProps>
             <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">
               Performance Rating
             </label>
-            <select
+            <SearchableSelect
               value={filterRating}
-              onChange={(e) => setFilterRating(e.target.value)}
-              className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700 focus:bg-white"
-            >
-              <option value="all">All Ratings</option>
-              <option value="Outstanding">Outstanding (95-100%)</option>
-              <option value="Exceeds Expectations">Exceeds Expectations (85-94%)</option>
-              <option value="Meets Expectations">Meets Expectations (75-84%)</option>
-              <option value="Needs Improvement">Needs Improvement (60-74%)</option>
-              <option value="Unsatisfactory">Unsatisfactory (&lt;60%)</option>
-            </select>
+              onChange={setFilterRating}
+              options={[
+                { value: 'all', label: 'All Ratings' },
+                { value: 'Outstanding', label: 'Outstanding (95-100%)' },
+                { value: 'Exceeds Expectations', label: 'Exceeds Expectations (85-94%)' },
+                { value: 'Meets Expectations', label: 'Meets Expectations (75-84%)' },
+                { value: 'Needs Improvement', label: 'Needs Improvement (60-74%)' },
+                { value: 'Unsatisfactory', label: 'Unsatisfactory (<60%)' },
+              ]}
+              placeholder="All Ratings"
+              searchPlaceholder="Filter ratings..."
+              buttonClassName="w-full p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700 focus:bg-white h-8"
+            />
           </div>
 
           <div>
             <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">
               Review Status
             </label>
-            <select
+            <SearchableSelect
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700 focus:bg-white"
-            >
-              <option value="all">All Statuses</option>
-              <option value="Draft Self-Appraisal">Draft Self-Appraisal</option>
-              <option value="Supervisor Review">Supervisor Review</option>
-              <option value="HR Finalized">HR Finalized</option>
-              <option value="Completed">Completed & Archived</option>
-            </select>
+              onChange={setFilterStatus}
+              options={[
+                { value: 'all', label: 'All Statuses' },
+                { value: 'Draft Self-Appraisal', label: 'Draft Self-Appraisal' },
+                { value: 'Supervisor Review', label: 'Supervisor Review' },
+                { value: 'HR Finalized', label: 'HR Finalized' },
+                { value: 'Completed', label: 'Completed & Archived' },
+              ]}
+              placeholder="All Statuses"
+              searchPlaceholder="Filter statuses..."
+              buttonClassName="w-full p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700 focus:bg-white h-8"
+            />
           </div>
 
           <div>
             <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">
               Department
             </label>
-            <select
+            <SearchableSelect
               value={filterDeptId}
-              onChange={(e) => setFilterDeptId(e.target.value)}
-              className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700 focus:bg-white"
-            >
-              <option value="all">All Departments</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id.toString()}>
-                  {d.departmentCode} - {d.departmentName}
-                </option>
-              ))}
-            </select>
+              onChange={setFilterDeptId}
+              options={[
+                { value: 'all', label: 'All Departments' },
+                ...departments.map((d) => ({
+                  value: d.id.toString(),
+                  label: `${d.departmentCode} - ${d.departmentName}`,
+                })),
+              ]}
+              placeholder="All Departments"
+              searchPlaceholder="Filter departments..."
+              buttonClassName="w-full p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700 focus:bg-white h-8"
+            />
           </div>
         </div>
       </div>
@@ -586,40 +595,36 @@ export const PerformanceManagementView: React.FC<PerformanceManagementViewProps>
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                 Civil Service Officer <span className="text-red-500">*</span>
               </label>
-              <select
-                value={initEmpId}
-                onChange={(e) => setInitEmpId(parseInt(e.target.value))}
-                className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 font-semibold"
-              >
-                {employees.map((emp) => {
+              <SearchableSelect
+                value={initEmpId.toString()}
+                onChange={(val) => setInitEmpId(parseInt(val, 10))}
+                options={employees.map((emp) => {
                   const pers = db.getEmployeePersonalInfo(emp.id);
-                  return (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.staffId} - {pers?.fullName || `${pers?.firstName} ${pers?.surname}`}
-                    </option>
-                  );
+                  const name = pers?.fullName || `${pers?.firstName ?? ''} ${pers?.surname ?? ''}`.trim() || 'Officer';
+                  return { value: emp.id.toString(), label: `${emp.staffId} - ${name}` };
                 })}
-              </select>
+                placeholder="Select officer..."
+                searchPlaceholder="Search officer by Staff ID or name..."
+                buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 font-semibold h-10"
+              />
             </div>
 
             <div>
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                 Designated Evaluating Supervisor <span className="text-red-500">*</span>
               </label>
-              <select
-                value={initSupervisorId}
-                onChange={(e) => setInitSupervisorId(parseInt(e.target.value))}
-                className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800"
-              >
-                {employees.map((emp) => {
+              <SearchableSelect
+                value={initSupervisorId.toString()}
+                onChange={(val) => setInitSupervisorId(parseInt(val, 10))}
+                options={employees.map((emp) => {
                   const pers = db.getEmployeePersonalInfo(emp.id);
-                  return (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.staffId} - {pers?.fullName || `${pers?.firstName} ${pers?.surname}`}
-                    </option>
-                  );
+                  const name = pers?.fullName || `${pers?.firstName ?? ''} ${pers?.surname ?? ''}`.trim() || 'Officer';
+                  return { value: emp.id.toString(), label: `${emp.staffId} - ${name}` };
                 })}
-              </select>
+                placeholder="Select supervisor..."
+                searchPlaceholder="Search supervisor by Staff ID or name..."
+                buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 h-10"
+              />
             </div>
 
             <div>
@@ -748,17 +753,20 @@ export const PerformanceManagementView: React.FC<PerformanceManagementViewProps>
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                   Final Evaluated Civil Service Rating
                 </label>
-                <select
+                <SearchableSelect
                   value={revRating}
-                  onChange={(e) => setRevRating(e.target.value as any)}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 font-bold"
-                >
-                  <option value="Outstanding">Outstanding (95 - 100%)</option>
-                  <option value="Exceeds Expectations">Exceeds Expectations (85 - 94%)</option>
-                  <option value="Meets Expectations">Meets Expectations (75 - 84%)</option>
-                  <option value="Needs Improvement">Needs Improvement (60 - 74%)</option>
-                  <option value="Unsatisfactory">Unsatisfactory (&lt;60%)</option>
-                </select>
+                  onChange={(val) => setRevRating(val as PerformanceAppraisal['finalRating'])}
+                  options={[
+                    { value: 'Outstanding', label: 'Outstanding (95 - 100%)' },
+                    { value: 'Exceeds Expectations', label: 'Exceeds Expectations (85 - 94%)' },
+                    { value: 'Meets Expectations', label: 'Meets Expectations (75 - 84%)' },
+                    { value: 'Needs Improvement', label: 'Needs Improvement (60 - 74%)' },
+                    { value: 'Unsatisfactory', label: 'Unsatisfactory (<60%)' },
+                  ]}
+                  placeholder="Select rating..."
+                  searchPlaceholder="Filter ratings..."
+                  buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 font-bold h-10"
+                />
               </div>
 
               <div>
@@ -826,20 +834,18 @@ export const PerformanceManagementView: React.FC<PerformanceManagementViewProps>
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                   Evaluating Supervisor <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={editSupervisorId}
-                  onChange={(e) => setEditSupervisorId(parseInt(e.target.value, 10))}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800"
-                >
-                  {employees.map((emp) => {
+                <SearchableSelect
+                  value={editSupervisorId.toString()}
+                  onChange={(val) => setEditSupervisorId(parseInt(val, 10))}
+                  options={employees.map((emp) => {
                     const pers = db.getEmployeePersonalInfo(emp.id);
-                    return (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.staffId} - {pers?.fullName || `${pers?.firstName} ${pers?.surname}`}
-                      </option>
-                    );
+                    const name = pers?.fullName || `${pers?.firstName ?? ''} ${pers?.surname ?? ''}`.trim() || 'Officer';
+                    return { value: emp.id.toString(), label: `${emp.staffId} - ${name}` };
                   })}
-                </select>
+                  placeholder="Select supervisor..."
+                  searchPlaceholder="Search supervisor by Staff ID or name..."
+                  buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 h-10"
+                />
               </div>
 
               <div>
@@ -878,15 +884,18 @@ export const PerformanceManagementView: React.FC<PerformanceManagementViewProps>
 
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">Workflow Stage</label>
-                <select
+                <SearchableSelect
                   value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value as PerformanceAppraisal['status'])}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800"
-                >
-                  <option value="Draft Self-Appraisal">Draft Self-Appraisal</option>
-                  <option value="Supervisor Review">Supervisor Review</option>
-                  <option value="HR Finalized">HR Finalized</option>
-                </select>
+                  onChange={(val) => setEditStatus(val as PerformanceAppraisal['status'])}
+                  options={[
+                    { value: 'Draft Self-Appraisal', label: 'Draft Self-Appraisal' },
+                    { value: 'Supervisor Review', label: 'Supervisor Review' },
+                    { value: 'HR Finalized', label: 'HR Finalized' },
+                  ]}
+                  placeholder="Select stage..."
+                  searchPlaceholder="Filter stages..."
+                  buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 h-10"
+                />
               </div>
 
               <div>

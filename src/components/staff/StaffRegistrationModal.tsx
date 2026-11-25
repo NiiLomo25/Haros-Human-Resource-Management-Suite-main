@@ -1373,22 +1373,25 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
                             <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                               Status
                             </label>
-                            <select
+                            <SearchableSelect
                               value={mem.membershipStatus}
-                              onChange={(e) => {
-                                const val = e.target.value as 'Active' | 'Lapsed' | 'Suspended';
+                              onChange={(val) => {
+                                const status = val as 'Active' | 'Lapsed' | 'Suspended';
                                 setMemberships((prev) =>
                                   prev.map((item, i) =>
-                                    i === idx ? { ...item, membershipStatus: val } : item
+                                    i === idx ? { ...item, membershipStatus: status } : item
                                   )
                                 );
                               }}
-                              className="w-full h-8 px-2 rounded border border-slate-300 bg-white text-xs font-semibold"
-                            >
-                              <option value="Active">Active</option>
-                              <option value="Lapsed">Lapsed</option>
-                              <option value="Suspended">Suspended</option>
-                            </select>
+                              options={[
+                                { value: 'Active', label: 'Active' },
+                                { value: 'Lapsed', label: 'Lapsed' },
+                                { value: 'Suspended', label: 'Suspended' },
+                              ]}
+                              placeholder="Select status..."
+                              searchPlaceholder="Filter statuses..."
+                              buttonClassName="w-full h-8 px-2 rounded border border-slate-300 bg-white text-xs font-semibold"
+                            />
                           </div>
                         </div>
                       </div>

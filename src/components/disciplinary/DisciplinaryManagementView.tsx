@@ -485,16 +485,21 @@ export const DisciplinaryManagementView: React.FC<DisciplinaryManagementViewProp
           <div className="flex-1 overflow-y-auto p-5 space-y-3.5">
             <div>
               <label className="font-semibold text-slate-700 block mb-1">Select Officer</label>
-              <select name="employeeId" required className="w-full p-2 rounded border border-slate-300 bg-white">
-                {employees.map((emp) => {
+              <SearchableSelect
+                name="employeeId"
+                required
+                defaultValue={employees[0]?.id?.toString()}
+                options={employees.map((emp) => {
                   const personal = db.getEmployeePersonalInfo(emp.id);
-                  return (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.staffId} — {personal?.fullName}
-                    </option>
-                  );
+                  return {
+                    value: emp.id.toString(),
+                    label: `${emp.staffId} — ${personal?.fullName || 'Officer'}`,
+                  };
                 })}
-              </select>
+                placeholder="Select officer..."
+                searchPlaceholder="Search officer by Staff ID or name..."
+                buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -521,16 +526,23 @@ export const DisciplinaryManagementView: React.FC<DisciplinaryManagementViewProp
 
             <div>
               <label className="font-semibold text-slate-700 block mb-1">Nature of Offence</label>
-              <select name="natureOfOffence" className="w-full p-2 rounded border border-slate-300 bg-white">
-                <option value="Insubordination & Disregard of Lawful Order">Insubordination &amp; Disregard of Lawful Order</option>
-                <option value="Gross Misconduct & Civil Disorder">Gross Misconduct &amp; Civil Disorder</option>
-                <option value="Absence Without Official Leave (AWOL)">Absence Without Official Leave (AWOL)</option>
-                <option value="Financial Malfeasance & Misappropriation">Financial Malfeasance &amp; Misappropriation</option>
-                <option value="Breach of Official Oath & Code of Conduct">Breach of Official Oath &amp; Code of Conduct</option>
-                <option value="Unauthorized Leakage of Classified Information">Unauthorized Leakage of Classified Information</option>
-                <option value="Negligence in the Discharge of Duty">Negligence in the Discharge of Duty</option>
-                <option value="Other Infraction">Other Infraction</option>
-              </select>
+              <SearchableSelect
+                name="natureOfOffence"
+                defaultValue="Insubordination & Disregard of Lawful Order"
+                options={[
+                  { value: 'Insubordination & Disregard of Lawful Order', label: 'Insubordination & Disregard of Lawful Order' },
+                  { value: 'Gross Misconduct & Civil Disorder', label: 'Gross Misconduct & Civil Disorder' },
+                  { value: 'Absence Without Official Leave (AWOL)', label: 'Absence Without Official Leave (AWOL)' },
+                  { value: 'Financial Malfeasance & Misappropriation', label: 'Financial Malfeasance & Misappropriation' },
+                  { value: 'Breach of Official Oath & Code of Conduct', label: 'Breach of Official Oath & Code of Conduct' },
+                  { value: 'Unauthorized Leakage of Classified Information', label: 'Unauthorized Leakage of Classified Information' },
+                  { value: 'Negligence in the Discharge of Duty', label: 'Negligence in the Discharge of Duty' },
+                  { value: 'Other Infraction', label: 'Other Infraction' },
+                ]}
+                placeholder="Select offence..."
+                searchPlaceholder="Filter offences..."
+                buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+              />
             </div>
 
             <div>
@@ -567,11 +579,18 @@ export const DisciplinaryManagementView: React.FC<DisciplinaryManagementViewProp
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="font-semibold text-slate-700 block mb-1">Initial Status</label>
-                <select name="caseStatus" className="w-full p-2 rounded border border-slate-300 bg-white">
-                  <option value="Reported">Reported</option>
-                  <option value="Under Investigation">Under Investigation</option>
-                  <option value="Committee Hearing">Committee Hearing</option>
-                </select>
+                <SearchableSelect
+                  name="caseStatus"
+                  defaultValue="Reported"
+                  options={[
+                    { value: 'Reported', label: 'Reported' },
+                    { value: 'Under Investigation', label: 'Under Investigation' },
+                    { value: 'Committee Hearing', label: 'Committee Hearing' },
+                  ]}
+                  placeholder="Select status..."
+                  searchPlaceholder="Filter statuses..."
+                  buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+                />
               </div>
 
               <div className="flex items-center pt-5">
@@ -640,30 +659,40 @@ export const DisciplinaryManagementView: React.FC<DisciplinaryManagementViewProp
 
               <div>
                 <label className="font-semibold text-slate-700 block mb-1">Committee Finding / Outcome</label>
-                <select name="outcome" defaultValue={activeReviewCase.outcome} className="w-full p-2 rounded border border-slate-300 bg-white">
-                  <option value="Charge Established">Charge Established</option>
-                  <option value="Exonerated">Exonerated (Officer Cleared)</option>
-                  <option value="Dismissed">Dismissed for Lack of Evidence</option>
-                  <option value="Pending Investigation">Pending Investigation</option>
-                </select>
+                <SearchableSelect
+                  name="outcome"
+                  defaultValue={activeReviewCase.outcome}
+                  options={[
+                    { value: 'Charge Established', label: 'Charge Established' },
+                    { value: 'Exonerated', label: 'Exonerated (Officer Cleared)' },
+                    { value: 'Dismissed', label: 'Dismissed for Lack of Evidence' },
+                    { value: 'Pending Investigation', label: 'Pending Investigation' },
+                  ]}
+                  placeholder="Select outcome..."
+                  searchPlaceholder="Filter outcomes..."
+                  buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+                />
               </div>
 
               <div>
                 <label className="font-semibold text-slate-700 block mb-1">Statutory Sanction (Civil Service Code)</label>
-                <select
+                <SearchableSelect
                   name="sanctionRecommended"
                   defaultValue={activeReviewCase.sanctionRecommended || 'Written Warning & Reprimand'}
-                  className="w-full p-2 rounded border border-slate-300 bg-white"
-                >
-                  <option value="Exonerated (No Action)">Exonerated (No Action)</option>
-                  <option value="Verbal Admonition">Verbal Admonition</option>
-                  <option value="Written Warning & Reprimand">Written Warning &amp; Reprimand</option>
-                  <option value="Withholding of Annual Increment">Withholding of Annual Increment</option>
-                  <option value="Reduction in Rank (Demotion)">Reduction in Rank (Demotion)</option>
-                  <option value="Interdiction with Half Salary">Interdiction with Half Salary</option>
-                  <option value="Suspension from Service">Suspension from Service</option>
-                  <option value="Summary Dismissal">Summary Dismissal</option>
-                </select>
+                  options={[
+                    { value: 'Exonerated (No Action)', label: 'Exonerated (No Action)' },
+                    { value: 'Verbal Admonition', label: 'Verbal Admonition' },
+                    { value: 'Written Warning & Reprimand', label: 'Written Warning & Reprimand' },
+                    { value: 'Withholding of Annual Increment', label: 'Withholding of Annual Increment' },
+                    { value: 'Reduction in Rank (Demotion)', label: 'Reduction in Rank (Demotion)' },
+                    { value: 'Interdiction with Half Salary', label: 'Interdiction with Half Salary' },
+                    { value: 'Suspension from Service', label: 'Suspension from Service' },
+                    { value: 'Summary Dismissal', label: 'Summary Dismissal' },
+                  ]}
+                  placeholder="Select sanction..."
+                  searchPlaceholder="Filter sanctions..."
+                  buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -680,12 +709,19 @@ export const DisciplinaryManagementView: React.FC<DisciplinaryManagementViewProp
 
                 <div>
                   <label className="font-semibold text-slate-700 block mb-1">Docket Case Status</label>
-                  <select name="caseStatus" defaultValue="Sanction Imposed" className="w-full p-2 rounded border border-slate-300 bg-white">
-                    <option value="Sanction Imposed">Sanction Imposed</option>
-                    <option value="Closed">Closed</option>
-                    <option value="Exonerated">Exonerated</option>
-                    <option value="Appealed">Appealed</option>
-                  </select>
+                  <SearchableSelect
+                    name="caseStatus"
+                    defaultValue="Sanction Imposed"
+                    options={[
+                      { value: 'Sanction Imposed', label: 'Sanction Imposed' },
+                      { value: 'Closed', label: 'Closed' },
+                      { value: 'Exonerated', label: 'Exonerated' },
+                      { value: 'Appealed', label: 'Appealed' },
+                    ]}
+                    placeholder="Select status..."
+                    searchPlaceholder="Filter statuses..."
+                    buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+                  />
                 </div>
               </div>
             </div>
@@ -892,20 +928,23 @@ export const DisciplinaryManagementView: React.FC<DisciplinaryManagementViewProp
 
               <div>
                 <label className="font-semibold text-slate-700 block mb-1">Nature of Offence</label>
-                <select
+                <SearchableSelect
                   name="natureOfOffence"
                   defaultValue={editingCase.natureOfOffence}
-                  className="w-full p-2 rounded border border-slate-300 bg-white"
-                >
-                  <option value="Insubordination & Disregard of Lawful Order">Insubordination &amp; Disregard of Lawful Order</option>
-                  <option value="Gross Misconduct & Civil Disorder">Gross Misconduct &amp; Civil Disorder</option>
-                  <option value="Absence Without Official Leave (AWOL)">Absence Without Official Leave (AWOL)</option>
-                  <option value="Financial Malfeasance & Misappropriation">Financial Malfeasance &amp; Misappropriation</option>
-                  <option value="Breach of Official Oath & Code of Conduct">Breach of Official Oath &amp; Code of Conduct</option>
-                  <option value="Unauthorized Leakage of Classified Information">Unauthorized Leakage of Classified Information</option>
-                  <option value="Negligence in the Discharge of Duty">Negligence in the Discharge of Duty</option>
-                  <option value="Other Infraction">Other Infraction</option>
-                </select>
+                  options={[
+                    { value: 'Insubordination & Disregard of Lawful Order', label: 'Insubordination & Disregard of Lawful Order' },
+                    { value: 'Gross Misconduct & Civil Disorder', label: 'Gross Misconduct & Civil Disorder' },
+                    { value: 'Absence Without Official Leave (AWOL)', label: 'Absence Without Official Leave (AWOL)' },
+                    { value: 'Financial Malfeasance & Misappropriation', label: 'Financial Malfeasance & Misappropriation' },
+                    { value: 'Breach of Official Oath & Code of Conduct', label: 'Breach of Official Oath & Code of Conduct' },
+                    { value: 'Unauthorized Leakage of Classified Information', label: 'Unauthorized Leakage of Classified Information' },
+                    { value: 'Negligence in the Discharge of Duty', label: 'Negligence in the Discharge of Duty' },
+                    { value: 'Other Infraction', label: 'Other Infraction' },
+                  ]}
+                  placeholder="Select offence..."
+                  searchPlaceholder="Filter offences..."
+                  buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+                />
               </div>
 
               <div>
@@ -942,19 +981,22 @@ export const DisciplinaryManagementView: React.FC<DisciplinaryManagementViewProp
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="font-semibold text-slate-700 block mb-1">Case Status</label>
-                  <select
+                  <SearchableSelect
                     name="caseStatus"
                     defaultValue={editingCase.caseStatus}
-                    className="w-full p-2 rounded border border-slate-300 bg-white"
-                  >
-                    <option value="Reported">Reported</option>
-                    <option value="Under Investigation">Under Investigation</option>
-                    <option value="Committee Hearing">Committee Hearing</option>
-                    <option value="Sanction Imposed">Sanction Imposed</option>
-                    <option value="Exonerated">Exonerated</option>
-                    <option value="Appealed">Appealed</option>
-                    <option value="Closed">Closed</option>
-                  </select>
+                    options={[
+                      { value: 'Reported', label: 'Reported' },
+                      { value: 'Under Investigation', label: 'Under Investigation' },
+                      { value: 'Committee Hearing', label: 'Committee Hearing' },
+                      { value: 'Sanction Imposed', label: 'Sanction Imposed' },
+                      { value: 'Exonerated', label: 'Exonerated' },
+                      { value: 'Appealed', label: 'Appealed' },
+                      { value: 'Closed', label: 'Closed' },
+                    ]}
+                    placeholder="Select status..."
+                    searchPlaceholder="Filter statuses..."
+                    buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+                  />
                 </div>
 
                 <div className="flex items-center pt-5">

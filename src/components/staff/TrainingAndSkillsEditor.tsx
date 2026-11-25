@@ -7,6 +7,7 @@
 import React from 'react';
 import { Plus, X, Award, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { SkillCategory } from '../../types';
+import { SearchableSelect } from '../common/SearchableSelect';
 
 export interface SkillEntry {
   id?: number;
@@ -227,21 +228,20 @@ export const TrainingAndSkillsEditor: React.FC<TrainingAndSkillsEditorProps> = (
                         </span>
                       )}
                     </div>
-                    <select
+                    <SearchableSelect
                       disabled={readOnly}
                       value={skill.category}
-                      onChange={(e) =>
-                        handleUpdateSkill(idx, { category: e.target.value as SkillCategory })
+                      onChange={(val) =>
+                        handleUpdateSkill(idx, { category: val as SkillCategory })
                       }
-                      className="w-full h-8 px-2 rounded-lg border border-slate-300 text-xs bg-white text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
-                    >
-                      <option value="">Select Category...</option>
-                      {SKILL_CATEGORIES.map((cat) => (
-                        <option key={cat.value} value={cat.value}>
-                          {cat.label}
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: '', label: 'Select Category...' },
+                        ...SKILL_CATEGORIES.map((cat) => ({ value: cat.value, label: cat.label })),
+                      ]}
+                      placeholder="Select Category..."
+                      searchPlaceholder="Filter categories..."
+                      buttonClassName="w-full h-8 px-2 rounded-lg border border-slate-300 text-xs bg-white text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                    />
                   </div>
                 </div>
 

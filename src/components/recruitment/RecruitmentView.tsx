@@ -605,7 +605,7 @@ export const RecruitmentView: React.FC<RecruitmentViewProps> = ({ onSelectEmploy
                       <td className="p-3">
                         <div className="font-semibold text-slate-800">{app.vacancyPositionTitle}</div>
                         <div className="text-[10px] text-slate-500 font-mono">
-                          {dept?.departmentName} ({mda?.code})
+                          {[mda?.name, dept?.departmentName].filter(Boolean).join(' — ')}
                         </div>
                       </td>
 
@@ -793,14 +793,17 @@ export const RecruitmentView: React.FC<RecruitmentViewProps> = ({ onSelectEmploy
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">Gender</label>
-                <select
+                <SearchableSelect
                   value={formGender}
-                  onChange={(e) => setFormGender(e.target.value as Gender)}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                >
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                </select>
+                  onChange={(val) => setFormGender(val as Gender)}
+                  options={[
+                    { value: 'Male', label: 'Male' },
+                    { value: 'Female', label: 'Female' },
+                  ]}
+                  placeholder="Select gender..."
+                  searchPlaceholder="Filter..."
+                  buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 h-10"
+                />
               </div>
 
               <div>
@@ -857,70 +860,71 @@ export const RecruitmentView: React.FC<RecruitmentViewProps> = ({ onSelectEmploy
                   <label className="block text-[10px] font-semibold text-blue-800 mb-1 uppercase">
                     Cadre Stream <span className="text-red-500">*</span>
                   </label>
-                  <select
+                  <SearchableSelect
                     value={formCadre}
-                    onChange={(e) => setFormCadre(e.target.value as EmployeeCategory)}
-                    className="w-full p-2 bg-blue-50/50 border border-blue-200 rounded text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                  >
-                    <option value="Professional">Professional Cadre (Degree / Officer)</option>
-                    <option value="Sub-Professional">Sub-Professional Cadre (HND / Technical / Clerical)</option>
-                    <option value="Technical">Technical Cadre</option>
-                    <option value="Administrative">Administrative Cadre</option>
-                  </select>
+                    onChange={(val) => setFormCadre(val as EmployeeCategory)}
+                    options={[
+                      { value: 'Professional', label: 'Professional Cadre (Degree / Officer)' },
+                      { value: 'Sub-Professional', label: 'Sub-Professional Cadre (HND / Technical / Clerical)' },
+                      { value: 'Technical', label: 'Technical Cadre' },
+                      { value: 'Administrative', label: 'Administrative Cadre' },
+                    ]}
+                    placeholder="Select cadre..."
+                    searchPlaceholder="Filter cadres..."
+                    buttonClassName="w-full p-2 bg-blue-50/50 border border-blue-200 rounded text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 h-10"
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[10px] font-semibold text-slate-600 mb-1">Hiring MDA</label>
-                  <select
-                    value={formMdaId}
-                    onChange={(e) => {
-                      const mdaId = parseInt(e.target.value);
+                  <SearchableSelect
+                    value={formMdaId.toString()}
+                    onChange={(val) => {
+                      const mdaId = parseInt(val, 10);
                       setFormMdaId(mdaId);
                       const firstDept = departments.find((d) => d.mdaId === mdaId);
                       if (firstDept) setFormDeptId(firstDept.id);
                     }}
-                    className="w-full p-1.5 bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                  >
-                    {mdas.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.code} - {m.name}
-                      </option>
-                    ))}
-                  </select>
+                    options={mdas.map((m) => ({
+                      value: m.id.toString(),
+                      label: `${m.code} - ${m.name}`,
+                      subLabel: m.mdaType,
+                    }))}
+                    placeholder="Select MDA..."
+                    searchPlaceholder="Filter MDAs..."
+                    buttonClassName="w-full p-1.5 bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 h-9"
+                  />
                 </div>
 
                 <div>
                   <label className="block text-[10px] font-semibold text-slate-600 mb-1">Target Department</label>
-                  <select
-                    value={formDeptId}
-                    onChange={(e) => setFormDeptId(parseInt(e.target.value))}
-                    className="w-full p-1.5 bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                  >
-                    {departments
+                  <SearchableSelect
+                    value={formDeptId.toString()}
+                    onChange={(val) => setFormDeptId(parseInt(val, 10))}
+                    options={departments
                       .filter((d) => d.mdaId === formMdaId)
-                      .map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.departmentCode} - {d.departmentName}
-                        </option>
-                      ))}
-                  </select>
+                      .map((d) => ({
+                        value: d.id.toString(),
+                        label: `${d.departmentCode} - ${d.departmentName}`,
+                      }))}
+                    placeholder="Select department..."
+                    searchPlaceholder="Filter departments..."
+                    buttonClassName="w-full p-1.5 bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 h-9"
+                  />
                 </div>
 
                 <div>
                   <label className="block text-[10px] font-semibold text-slate-600 mb-1">Entry Grade Level</label>
-                  <select
-                    value={formGradeId}
-                    onChange={(e) => setFormGradeId(parseInt(e.target.value))}
-                    className="w-full p-1.5 bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                  >
-                    {gradeLevels.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.gradeName}
-                      </option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    value={formGradeId.toString()}
+                    onChange={(val) => setFormGradeId(parseInt(val, 10))}
+                    options={gradeLevels.map((g) => ({ value: g.id.toString(), label: g.gradeName }))}
+                    placeholder="Select grade..."
+                    searchPlaceholder="Filter grade levels..."
+                    buttonClassName="w-full p-1.5 bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 h-9"
+                  />
                 </div>
               </div>
             </div>
@@ -1035,16 +1039,19 @@ export const RecruitmentView: React.FC<RecruitmentViewProps> = ({ onSelectEmploy
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                   Recruitment / Selection Status
                 </label>
-                <select
+                <SearchableSelect
                   value={scoreStatus}
-                  onChange={(e) => setScoreStatus(e.target.value as any)}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                >
-                  <option value="Shortlisted">Shortlisted</option>
-                  <option value="Interviewed">Interviewed</option>
-                  <option value="Selected">Selected for Appointment</option>
-                  <option value="Rejected">Rejected</option>
-                </select>
+                  onChange={(val) => setScoreStatus(val as 'Shortlisted' | 'Interviewed' | 'Selected' | 'Rejected')}
+                  options={[
+                    { value: 'Shortlisted', label: 'Shortlisted' },
+                    { value: 'Interviewed', label: 'Interviewed' },
+                    { value: 'Selected', label: 'Selected for Appointment' },
+                    { value: 'Rejected', label: 'Rejected' },
+                  ]}
+                  placeholder="Select status..."
+                  searchPlaceholder="Filter statuses..."
+                  buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 h-10"
+                />
               </div>
 
               <div>
@@ -1125,15 +1132,18 @@ export const RecruitmentView: React.FC<RecruitmentViewProps> = ({ onSelectEmploy
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                   Terms of Appointment <span className="text-red-500">*</span>
                 </label>
-                <select
+                <SearchableSelect
                   value={appointEmpType}
-                  onChange={(e) => setAppointEmpType(e.target.value as EmploymentType)}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                >
-                  <option value="Permanent & Pensionable">Permanent & Pensionable (Subject to 1 yr probation)</option>
-                  <option value="Fixed-Term Contract">Fixed-Term Contract</option>
-                  <option value="Casual">Casual</option>
-                </select>
+                  onChange={(val) => setAppointEmpType(val as EmploymentType)}
+                  options={[
+                    { value: 'Permanent & Pensionable', label: 'Permanent & Pensionable (Subject to 1 yr probation)' },
+                    { value: 'Fixed-Term Contract', label: 'Fixed-Term Contract' },
+                    { value: 'Casual', label: 'Casual' },
+                  ]}
+                  placeholder="Select terms..."
+                  searchPlaceholder="Filter terms..."
+                  buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 h-10"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

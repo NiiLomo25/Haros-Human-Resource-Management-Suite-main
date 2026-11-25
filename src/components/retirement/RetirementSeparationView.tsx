@@ -717,30 +717,42 @@ export const RetirementSeparationView: React.FC<RetirementSeparationViewProps> =
 
             <div>
               <label className="font-semibold text-slate-700 block mb-1">Select Officer</label>
-              <select name="employeeId" required className="w-full p-2 rounded border border-slate-300 bg-white">
-                {employees.map((emp) => {
+              <SearchableSelect
+                name="employeeId"
+                required
+                defaultValue={employees[0]?.id?.toString()}
+                options={employees.map((emp) => {
                   const personal = db.getEmployeePersonalInfo(emp.id);
-                  return (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.staffId} — {personal?.fullName}
-                    </option>
-                  );
+                  return {
+                    value: emp.id.toString(),
+                    label: `${emp.staffId} — ${personal?.fullName || 'Officer'}`,
+                  };
                 })}
-              </select>
+                placeholder="Select officer..."
+                searchPlaceholder="Search officer by Staff ID or name..."
+                buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="font-semibold text-slate-700 block mb-1">Separation Category</label>
-                <select name="separationType" className="w-full p-2 rounded border border-slate-300 bg-white">
-                  <option value="Retirement">Retirement (Statutory)</option>
-                  <option value="Voluntary Resignation">Voluntary Resignation</option>
-                  <option value="Termination">Termination</option>
-                  <option value="Dismissal">Dismissal</option>
-                  <option value="Death">Death (Post-Mortem Exit)</option>
-                  <option value="Contract Expiry">Contract Expiry</option>
-                  <option value="Other Separation">Other Separation</option>
-                </select>
+                <SearchableSelect
+                  name="separationType"
+                  defaultValue="Retirement"
+                  options={[
+                    { value: 'Retirement', label: 'Retirement (Statutory)' },
+                    { value: 'Voluntary Resignation', label: 'Voluntary Resignation' },
+                    { value: 'Termination', label: 'Termination' },
+                    { value: 'Dismissal', label: 'Dismissal' },
+                    { value: 'Death', label: 'Death (Post-Mortem Exit)' },
+                    { value: 'Contract Expiry', label: 'Contract Expiry' },
+                    { value: 'Other Separation', label: 'Other Separation' },
+                  ]}
+                  placeholder="Select category..."
+                  searchPlaceholder="Filter categories..."
+                  buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+                />
               </div>
 
               <div>
@@ -986,19 +998,22 @@ export const RetirementSeparationView: React.FC<RetirementSeparationViewProps> =
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="font-semibold text-slate-700 block mb-1">Separation Category</label>
-                  <select
+                  <SearchableSelect
                     name="separationType"
                     defaultValue={editingSeparation.separationType}
-                    className="w-full p-2 rounded border border-slate-300 bg-white"
-                  >
-                    <option value="Retirement">Retirement (Statutory)</option>
-                    <option value="Voluntary Resignation">Voluntary Resignation</option>
-                    <option value="Termination">Termination</option>
-                    <option value="Dismissal">Dismissal</option>
-                    <option value="Death">Death (Post-Mortem Exit)</option>
-                    <option value="Contract Expiry">Contract Expiry</option>
-                    <option value="Other Separation">Other Separation</option>
-                  </select>
+                    options={[
+                      { value: 'Retirement', label: 'Retirement (Statutory)' },
+                      { value: 'Voluntary Resignation', label: 'Voluntary Resignation' },
+                      { value: 'Termination', label: 'Termination' },
+                      { value: 'Dismissal', label: 'Dismissal' },
+                      { value: 'Death', label: 'Death (Post-Mortem Exit)' },
+                      { value: 'Contract Expiry', label: 'Contract Expiry' },
+                      { value: 'Other Separation', label: 'Other Separation' },
+                    ]}
+                    placeholder="Select category..."
+                    searchPlaceholder="Filter categories..."
+                    buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+                  />
                 </div>
                 <div>
                   <label className="font-semibold text-slate-700 block mb-1">Effective Separation Date</label>

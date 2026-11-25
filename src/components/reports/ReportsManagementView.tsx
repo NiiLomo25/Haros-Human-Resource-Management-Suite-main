@@ -890,7 +890,7 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
           },
           secondaryTitle: 'Individual Officer Age & Tenure Profile',
           secondaryTabular: {
-            headers: ['Staff ID', 'Officer Name', 'Date of Birth', 'Current Age', '1st Appt Date', 'Years of Service', 'Department', 'Grade Title'],
+            headers: ['Staff ID', 'Officer Name', 'Date of Birth', 'Current Age', '1st Appt Date', 'Years of Service', 'MDA / Department', 'Grade Title'],
             rows: [...enrichedEmployees]
               .sort((a, b) => b.age - a.age)
               .map((e) => [
@@ -900,7 +900,7 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
                 `${e.age} Yrs`,
                 e.employment?.dateOfFirstAppointment || '',
                 `${e.yrsService.toFixed(1)} Yrs`,
-                e.dept?.departmentName || '',
+                [e.mda?.name, e.dept?.departmentName].filter(Boolean).join(' — '),
                 e.grade?.gradeName || '',
               ]),
           },
@@ -1147,11 +1147,11 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
           },
           secondaryTitle: 'Workforce Career Progression Eligibility Matrix (3-Yr Automatic / 5-Yr Competitive Merit)',
           secondaryTabular: {
-            headers: ['Staff ID', 'Officer Name', 'Department', 'Current Grade', 'Years in Grade', 'Min Req.', 'Progression Stream', 'SPAS Appraisal', 'Projected Next Grade', 'Eligibility Status', 'First Grade', 'Current Promotion Date'],
+            headers: ['Staff ID', 'Officer Name', 'MDA / Department', 'Current Grade', 'Years in Grade', 'Min Req.', 'Progression Stream', 'SPAS Appraisal', 'Projected Next Grade', 'Eligibility Status', 'First Grade', 'Current Promotion Date'],
             rows: eligList.map(({ row, evalRes }) => [
               row.emp.staffId,
               row.personal?.fullName || '',
-              row.dept?.departmentName || '',
+              [row.mda?.name, row.dept?.departmentName].filter(Boolean).join(' — '),
               row.grade?.gradeName || '',
               `${evalRes.yearsInGrade.toFixed(1)} yrs`,
               `${evalRes.requiredYears} yrs`,
@@ -1414,17 +1414,18 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
           },
           secondaryTitle: 'Officer Training Nominations & Certification Ledger',
           secondaryTabular: {
-            headers: ['Staff ID', 'Officer Name', 'Department', 'Program Title', 'Category', 'Nomination Date', 'Score', 'Certificate No.', 'Status'],
+            headers: ['Staff ID', 'Officer Name', 'MDA / Department', 'Program Title', 'Category', 'Nomination Date', 'Score', 'Certificate No.', 'Status'],
             rows: filteredNoms.map((nom) => {
               const emp = employees.find((e) => e.id === nom.employeeId);
               const p = db.getEmployeePersonalInfo(nom.employeeId);
               const empInfo = db.getEmployeeEmploymentInfo(nom.employeeId);
               const dept = departments.find((d) => d.id === empInfo?.currentDepartmentId);
+              const mda = mdas.find((m) => m.id === empInfo?.currentMdaId);
               const prog = trainingProgs.find((pr) => pr.id === nom.trainingProgramId);
               return [
                 emp?.staffId || '',
                 p?.fullName || '',
-                dept?.departmentName || '',
+                [mda?.name, dept?.departmentName].filter(Boolean).join(' — '),
                 prog?.title || '',
                 prog?.category || '',
                 nom.nominationDate,
@@ -1540,11 +1541,14 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
           },
           secondaryTitle: 'Officer Payslip Remittance Schedule (Latest Active Run)',
           secondaryTabular: {
-            headers: ['Staff ID', 'Officer Name', 'Department', 'Grade Title', 'Step', 'Basic', 'Allowances', 'Gross', 'SSNIT + PAYE', 'Net Salary', 'Bank'],
+            headers: ['Staff ID', 'Officer Name', 'MDA / Department', 'Grade Title', 'Step', 'Basic', 'Allowances', 'Gross', 'SSNIT + PAYE', 'Net Salary', 'Bank'],
             rows: filteredSlips.map((sl) => [
               sl.staffId,
               sl.employeeName,
-              sl.departmentName,
+              [
+                mdas.find((m) => m.id === db.getEmployeeEmploymentInfo(sl.employeeId)?.currentMdaId)?.name,
+                sl.departmentName,
+              ].filter(Boolean).join(' — '),
               sl.gradeName,
               `Step ${sl.salaryStep}`,
               sl.basicSalaryGhs.toLocaleString('en-GH', { minimumFractionDigits: 2 }),
@@ -1788,17 +1792,18 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
             { label: 'Classified Dockets', value: `${filteredDisc.filter((c) => c.isConfidential).length}` },
           ],
           tabular: {
-            headers: ['Case Ref', 'Staff ID', 'Officer Name', 'Department', 'Incident Date', 'Nature of Offence', 'Hearing Date', 'Outcome', 'Sanction Recommended', 'Case Status'],
+            headers: ['Case Ref', 'Staff ID', 'Officer Name', 'MDA / Department', 'Incident Date', 'Nature of Offence', 'Hearing Date', 'Outcome', 'Sanction Recommended', 'Case Status'],
             rows: filteredDisc.map((c) => {
               const emp = employees.find((e) => e.id === c.employeeId);
               const p = db.getEmployeePersonalInfo(c.employeeId);
               const empInfo = db.getEmployeeEmploymentInfo(c.employeeId);
               const dept = departments.find((d) => d.id === empInfo?.currentDepartmentId);
+              const mda = mdas.find((m) => m.id === empInfo?.currentMdaId);
               return [
                 c.caseReference,
                 emp?.staffId || '',
                 p?.fullName || '',
-                dept?.departmentName || '',
+                [mda?.name, dept?.departmentName].filter(Boolean).join(' — '),
                 c.incidentDate,
                 c.natureOfOffence,
                 c.hearingDate || 'Pending',
@@ -2212,18 +2217,20 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
               {/* Reporting Period Preset + Custom Date From/To */}
               <div className="flex items-center space-x-1.5 bg-slate-50 border border-slate-200 rounded px-2 h-8">
                 <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                <select
+                <SearchableSelect
                   value={periodPreset}
-                  onChange={(e) => handleApplyPeriodPreset(e.target.value as any)}
-                  className="bg-transparent text-xs font-semibold text-slate-700 focus:outline-hidden pr-1"
-                  title="Reporting period preset"
-                >
-                  <option value="ALL">All Dates</option>
-                  <option value="FY2026">FY 2026</option>
-                  <option value="THIS_QUARTER">Q4 2026</option>
-                  <option value="THIS_MONTH">Nov 2026</option>
-                  <option value="CUSTOM">Custom Range</option>
-                </select>
+                  onChange={(val) => handleApplyPeriodPreset(val as any)}
+                  options={[
+                    { value: 'ALL', label: 'All Dates' },
+                    { value: 'FY2026', label: 'FY 2026' },
+                    { value: 'THIS_QUARTER', label: 'Q4 2026' },
+                    { value: 'THIS_MONTH', label: 'Nov 2026' },
+                    { value: 'CUSTOM', label: 'Custom Range' },
+                  ]}
+                  placeholder="Period"
+                  searchPlaceholder="Filter periods..."
+                  buttonClassName="bg-transparent border-none shadow-none h-7 px-1 text-xs font-semibold text-slate-700 w-32"
+                />
                 <span className="text-slate-300">|</span>
                 <input
                   type="date"

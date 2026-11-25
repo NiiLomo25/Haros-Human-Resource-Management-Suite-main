@@ -34,6 +34,7 @@ import {
   Mda,
 } from '../../types';
 import { SlideOverPanel } from '../common/SlideOverPanel';
+import { SearchableSelect } from '../common/SearchableSelect';
 
 interface AttendanceManagementViewProps {
   onSelectEmployee?: (empId: number) => void;
@@ -360,31 +361,36 @@ export const AttendanceManagementView: React.FC<AttendanceManagementViewProps> =
         </div>
 
         <div className="flex items-center space-x-2.5 w-full md:w-auto text-xs">
-          <select
+          <SearchableSelect
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700 focus:bg-white"
-          >
-            <option value="all">All Attendance Statuses</option>
-            <option value="Present">Present</option>
-            <option value="Late">Late</option>
-            <option value="Official Duty">Official Duty</option>
-            <option value="On Leave">On Leave</option>
-            <option value="Absent">Absent</option>
-          </select>
+            onChange={setFilterStatus}
+            options={[
+              { value: 'all', label: 'All Attendance Statuses' },
+              { value: 'Present', label: 'Present' },
+              { value: 'Late', label: 'Late' },
+              { value: 'Official Duty', label: 'Official Duty' },
+              { value: 'On Leave', label: 'On Leave' },
+              { value: 'Absent', label: 'Absent' },
+            ]}
+            placeholder="All Attendance Statuses"
+            searchPlaceholder="Filter statuses..."
+            buttonClassName="p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700 focus:bg-white h-8 w-44"
+          />
 
-          <select
+          <SearchableSelect
             value={filterDeptId}
-            onChange={(e) => setFilterDeptId(e.target.value)}
-            className="p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700 focus:bg-white"
-          >
-            <option value="all">All Departments</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id.toString()}>
-                {d.departmentCode} - {d.departmentName}
-              </option>
-            ))}
-          </select>
+            onChange={setFilterDeptId}
+            options={[
+              { value: 'all', label: 'All Departments' },
+              ...departments.map((d) => ({
+                value: d.id.toString(),
+                label: `${d.departmentCode} - ${d.departmentName}`,
+              })),
+            ]}
+            placeholder="All Departments"
+            searchPlaceholder="Filter departments..."
+            buttonClassName="p-1.5 bg-slate-50 border border-slate-200 rounded text-slate-700 focus:bg-white h-8 w-52"
+          />
         </div>
       </div>
 
@@ -538,38 +544,39 @@ export const AttendanceManagementView: React.FC<AttendanceManagementViewProps> =
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                 Civil Service Officer
               </label>
-              <select
-                value={logEmpId}
-                onChange={(e) => setLogEmpId(parseInt(e.target.value))}
-                className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-              >
-                {employees.map((emp) => {
+              <SearchableSelect
+                value={logEmpId.toString()}
+                onChange={(val) => setLogEmpId(parseInt(val, 10))}
+                options={employees.map((emp) => {
                   const pers = db.getEmployeePersonalInfo(emp.id);
-                  return (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.staffId} - {pers?.fullName || `${pers?.firstName} ${pers?.surname}`}
-                    </option>
-                  );
+                  const name = pers?.fullName || `${pers?.firstName ?? ''} ${pers?.surname ?? ''}`.trim() || 'Officer';
+                  return { value: emp.id.toString(), label: `${emp.staffId} - ${name}` };
                 })}
-              </select>
+                placeholder="Select officer..."
+                searchPlaceholder="Search officer by Staff ID or name..."
+                buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 h-10"
+              />
             </div>
 
             <div>
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                 Attendance Status
               </label>
-              <select
+              <SearchableSelect
                 value={logStatus}
-                onChange={(e) => setLogStatus(e.target.value as AttendanceRecord['status'])}
-                className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-              >
-                <option value="Present">Present (On-Time)</option>
-                <option value="Late">Late Arrival</option>
-                <option value="Official Duty">Official Duty / Fieldwork</option>
-                <option value="On Leave">On Authorized Leave</option>
-                <option value="Absent">Unexcused Absent</option>
-                <option value="Half Day">Half Day</option>
-              </select>
+                onChange={(val) => setLogStatus(val as AttendanceRecord['status'])}
+                options={[
+                  { value: 'Present', label: 'Present (On-Time)' },
+                  { value: 'Late', label: 'Late Arrival' },
+                  { value: 'Official Duty', label: 'Official Duty / Fieldwork' },
+                  { value: 'On Leave', label: 'On Authorized Leave' },
+                  { value: 'Absent', label: 'Unexcused Absent' },
+                  { value: 'Half Day', label: 'Half Day' },
+                ]}
+                placeholder="Select status..."
+                searchPlaceholder="Filter statuses..."
+                buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 h-10"
+              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

@@ -807,15 +807,18 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
 
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">Program Status</label>
-                <select
+                <SearchableSelect
                   value={progStatus}
-                  onChange={(e) => setProgStatus(e.target.value as TrainingProgram['status'])}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                >
-                  <option value="Planned">Planned</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Completed">Completed</option>
-                </select>
+                  onChange={(val) => setProgStatus(val as TrainingProgram['status'])}
+                  options={[
+                    { value: 'Planned', label: 'Planned' },
+                    { value: 'In Progress', label: 'In Progress' },
+                    { value: 'Completed', label: 'Completed' },
+                  ]}
+                  placeholder="Select status..."
+                  searchPlaceholder="Filter statuses..."
+                  buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 h-10"
+                />
               </div>
             </div>
           </div>
@@ -992,17 +995,20 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <div>
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">Nomination Status</label>
-                <select
+                <SearchableSelect
                   value={editNomStatus}
-                  onChange={(e) => setEditNomStatus(e.target.value as TrainingNomination['status'])}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800"
-                >
-                  <option value="Nominated">Nominated</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Attending">Attending</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Certified">Certified</option>
-                </select>
+                  onChange={(val) => setEditNomStatus(val as TrainingNomination['status'])}
+                  options={[
+                    { value: 'Nominated', label: 'Nominated' },
+                    { value: 'Approved', label: 'Approved' },
+                    { value: 'Attending', label: 'Attending' },
+                    { value: 'Completed', label: 'Completed' },
+                    { value: 'Certified', label: 'Certified' },
+                  ]}
+                  placeholder="Select status..."
+                  searchPlaceholder="Filter statuses..."
+                  buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 h-10"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">

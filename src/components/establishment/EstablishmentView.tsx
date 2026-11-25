@@ -470,7 +470,7 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold select-none">
                 <th className="p-3">Position Code</th>
                 <th className="p-3">Designation & Cadre</th>
-                <th className="p-3">Department & MDA</th>
+                <th className="p-3">MDA & Department</th>
                 <th className="p-3">Grade Level</th>
                 <th className="p-3 text-center">Approved Quota</th>
                 <th className="p-3 text-center">Occupied</th>
@@ -516,10 +516,13 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
                         </div>
                       </td>
 
-                      {/* Department */}
+                      {/* MDA & Department — MDA name primary, department beneath */}
                       <td className="p-3">
-                        <div className="font-medium text-slate-800">{item.dept?.departmentName}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">{item.mda?.code}</div>
+                        <div className="font-medium text-slate-800">{item.mda?.name || '—'}</div>
+                        <div className="text-[10px] text-slate-500">
+                          {item.dept?.departmentName}
+                          {item.mda?.code ? ` (${item.mda.code})` : ''}
+                        </div>
                       </td>
 
                       {/* Grade */}
@@ -745,34 +748,31 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                 Department <span className="text-red-500">*</span>
               </label>
-              <select
-                value={formDeptId}
-                onChange={(e) => setFormDeptId(parseInt(e.target.value))}
-                className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-              >
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.departmentCode} - {d.departmentName}
-                  </option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={formDeptId.toString()}
+                onChange={(val) => setFormDeptId(parseInt(val, 10))}
+                options={departments.map((d) => ({
+                  value: d.id.toString(),
+                  label: `${d.departmentCode} - ${d.departmentName}`,
+                }))}
+                placeholder="Select department..."
+                searchPlaceholder="Filter departments..."
+                buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 h-10"
+              />
             </div>
 
             <div>
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                 Approved Grade Level <span className="text-red-500">*</span>
               </label>
-              <select
-                value={formGradeId}
-                onChange={(e) => setFormGradeId(parseInt(e.target.value))}
-                className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-              >
-                {gradeLevels.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.gradeName}
-                  </option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={formGradeId.toString()}
+                onChange={(val) => setFormGradeId(parseInt(val, 10))}
+                options={gradeLevels.map((g) => ({ value: g.id.toString(), label: g.gradeName }))}
+                placeholder="Select grade..."
+                searchPlaceholder="Filter grade levels..."
+                buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 h-10"
+              />
             </div>
 
             <div>
@@ -794,15 +794,18 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                 Post Status
               </label>
-              <select
+              <SearchableSelect
                 value={formStatus}
-                onChange={(e) => setFormStatus(e.target.value as any)}
-                className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-              >
-                <option value="Active">Active</option>
-                <option value="Frozen">Frozen (Recruitment Blocked)</option>
-                <option value="Abolished">Abolished</option>
-              </select>
+                onChange={(val) => setFormStatus(val as 'Active' | 'Frozen' | 'Abolished')}
+                options={[
+                  { value: 'Active', label: 'Active' },
+                  { value: 'Frozen', label: 'Frozen (Recruitment Blocked)' },
+                  { value: 'Abolished', label: 'Abolished' },
+                ]}
+                placeholder="Select status..."
+                searchPlaceholder="Filter statuses..."
+                buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 h-10"
+              />
             </div>
           </div>
 

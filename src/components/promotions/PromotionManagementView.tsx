@@ -641,7 +641,7 @@ export const PromotionManagementView: React.FC<PromotionManagementViewProps> = (
                               {pers?.fullName || `${pers?.firstName} ${pers?.surname}`}
                             </div>
                             <div className="text-[10px] text-slate-500">
-                              {item.dept?.departmentName}
+                              {[item.mda?.name, item.dept?.departmentName].filter(Boolean).join(' — ')}
                             </div>
                           </td>
 
@@ -1264,15 +1264,18 @@ export const PromotionManagementView: React.FC<PromotionManagementViewProps> = (
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                   Board Review Status <span className="text-red-500">*</span>
                 </label>
-                <select
+                <SearchableSelect
                   value={editRecStatus}
-                  onChange={(e) => setEditRecStatus(e.target.value as PromotionRecommendation['status'])}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 font-semibold"
-                >
-                  <option value="Pending Review">Pending Review</option>
-                  <option value="Board Approved">Board Approved (Ready for Execution)</option>
-                  <option value="Deferred">Deferred</option>
-                </select>
+                  onChange={(val) => setEditRecStatus(val as PromotionRecommendation['status'])}
+                  options={[
+                    { value: 'Pending Review', label: 'Pending Review' },
+                    { value: 'Board Approved', label: 'Board Approved (Ready for Execution)' },
+                    { value: 'Deferred', label: 'Deferred' },
+                  ]}
+                  placeholder="Select status..."
+                  searchPlaceholder="Filter statuses..."
+                  buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 font-semibold h-9"
+                />
               </div>
 
               {editingRec.progressionType === 'Competitive Senior Promotion' && (

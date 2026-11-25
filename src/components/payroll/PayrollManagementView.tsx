@@ -1036,20 +1036,21 @@ export const PayrollManagementView: React.FC<PayrollManagementViewProps> = ({
 
             <div>
               <label className="font-semibold text-slate-700 block mb-1">Payroll Month</label>
-              <select name="periodMonth" defaultValue={11} className="w-full p-2 rounded border border-slate-300 bg-white">
-                <option value={1}>January</option>
-                <option value={2}>February</option>
-                <option value={3}>March</option>
-                <option value={4}>April</option>
-                <option value={5}>May</option>
-                <option value={6}>June</option>
-                <option value={7}>July</option>
-                <option value={8}>August</option>
-                <option value={9}>September</option>
-                <option value={10}>October</option>
-                <option value={11}>November</option>
-                <option value={12}>December</option>
-              </select>
+              <SearchableSelect
+                name="periodMonth"
+                defaultValue={11}
+                options={[
+                  { value: 1, label: 'January' }, { value: 2, label: 'February' },
+                  { value: 3, label: 'March' }, { value: 4, label: 'April' },
+                  { value: 5, label: 'May' }, { value: 6, label: 'June' },
+                  { value: 7, label: 'July' }, { value: 8, label: 'August' },
+                  { value: 9, label: 'September' }, { value: 10, label: 'October' },
+                  { value: 11, label: 'November' }, { value: 12, label: 'December' },
+                ]}
+                placeholder="Select month..."
+                searchPlaceholder="Filter months..."
+                buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+              />
             </div>
 
             <div className="p-3 bg-amber-50 rounded text-amber-900 text-[11px] border border-amber-200">
@@ -1132,17 +1133,31 @@ export const PayrollManagementView: React.FC<PayrollManagementViewProps> = ({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="font-semibold text-slate-700 block mb-1">Type</label>
-                <select name="componentType" className="w-full p-2 rounded border border-slate-300 bg-white">
-                  <option value="Allowance">Allowance (Earning)</option>
-                  <option value="Deduction">Deduction (Withholding)</option>
-                </select>
+                <SearchableSelect
+                  name="componentType"
+                  defaultValue="Allowance"
+                  options={[
+                    { value: 'Allowance', label: 'Allowance (Earning)' },
+                    { value: 'Deduction', label: 'Deduction (Withholding)' },
+                  ]}
+                  placeholder="Select type..."
+                  searchPlaceholder="Filter types..."
+                  buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+                />
               </div>
               <div>
                 <label className="font-semibold text-slate-700 block mb-1">Calculation</label>
-                <select name="calculationType" className="w-full p-2 rounded border border-slate-300 bg-white">
-                  <option value="PercentageOfBasic">% of Basic Salary</option>
-                  <option value="FixedAmount">Fixed Amount (GHS)</option>
-                </select>
+                <SearchableSelect
+                  name="calculationType"
+                  defaultValue="PercentageOfBasic"
+                  options={[
+                    { value: 'PercentageOfBasic', label: '% of Basic Salary' },
+                    { value: 'FixedAmount', label: 'Fixed Amount (GHS)' },
+                  ]}
+                  placeholder="Select calculation..."
+                  searchPlaceholder="Filter calculations..."
+                  buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+                />
               </div>
             </div>
 
@@ -1269,13 +1284,20 @@ export const PayrollManagementView: React.FC<PayrollManagementViewProps> = ({
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="font-semibold text-slate-700 block mb-1">Salary Step (1 to 5)</label>
-                      <select name="salaryStep" defaultValue={asgn?.salaryStep || 1} className="w-full p-2 rounded border border-slate-300 bg-white">
-                        <option value={1}>Step 1 (Entry Step)</option>
-                        <option value={2}>Step 2</option>
-                        <option value={3}>Step 3</option>
-                        <option value={4}>Step 4</option>
-                        <option value={5}>Step 5 (Ceiling Step)</option>
-                      </select>
+                      <SearchableSelect
+                        name="salaryStep"
+                        defaultValue={asgn?.salaryStep || 1}
+                        options={[
+                          { value: 1, label: 'Step 1 (Entry Step)' },
+                          { value: 2, label: 'Step 2' },
+                          { value: 3, label: 'Step 3' },
+                          { value: 4, label: 'Step 4' },
+                          { value: 5, label: 'Step 5 (Ceiling Step)' },
+                        ]}
+                        placeholder="Select step..."
+                        searchPlaceholder="Filter steps..."
+                        buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+                      />
                     </div>
 
                     <div>
@@ -1569,25 +1591,31 @@ export const PayrollManagementView: React.FC<PayrollManagementViewProps> = ({
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="font-semibold text-slate-700 block mb-1">Type</label>
-                  <select
+                  <SearchableSelect
                     name="componentType"
                     defaultValue={editingComponent.type}
-                    className="w-full p-2 rounded border border-slate-300 bg-white"
-                  >
-                    <option value="Allowance">Allowance (Earning)</option>
-                    <option value="Deduction">Deduction (Withholding)</option>
-                  </select>
+                    options={[
+                      { value: 'Allowance', label: 'Allowance (Earning)' },
+                      { value: 'Deduction', label: 'Deduction (Withholding)' },
+                    ]}
+                    placeholder="Select type..."
+                    searchPlaceholder="Filter types..."
+                    buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+                  />
                 </div>
                 <div>
                   <label className="font-semibold text-slate-700 block mb-1">Calculation</label>
-                  <select
+                  <SearchableSelect
                     name="calculationType"
                     defaultValue={editingComponent.calculationType}
-                    className="w-full p-2 rounded border border-slate-300 bg-white"
-                  >
-                    <option value="PercentageOfBasic">% of Basic Salary</option>
-                    <option value="FixedAmount">Fixed Amount (GHS)</option>
-                  </select>
+                    options={[
+                      { value: 'PercentageOfBasic', label: '% of Basic Salary' },
+                      { value: 'FixedAmount', label: 'Fixed Amount (GHS)' },
+                    ]}
+                    placeholder="Select calculation..."
+                    searchPlaceholder="Filter calculations..."
+                    buttonClassName="w-full p-2 rounded border border-slate-300 bg-white h-10"
+                  />
                 </div>
               </div>
 

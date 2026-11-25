@@ -561,7 +561,7 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
                   className="p-3 cursor-pointer hover:bg-slate-100 transition-colors"
                 >
                   <div className="flex items-center space-x-1">
-                    <span>Department & MDA</span>
+                    <span>MDA & Department</span>
                     <ArrowUpDown className="w-3 h-3 text-slate-400" />
                   </div>
                 </th>
@@ -659,13 +659,14 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
                         )}
                       </td>
 
-                      {/* Department & MDA */}
+                      {/* MDA & Department — MDA name primary, department beneath */}
                       <td className="p-3">
                         <div className="font-medium text-slate-800">
-                          {dept?.departmentName || 'General Administration'}
+                          {mda?.name || 'Central Ministry'}
                         </div>
                         <div className="text-[10px] text-slate-500">
-                          {mda?.code ? `${mda.code} - ${mda.name}` : 'Central Ministry'}
+                          {dept?.departmentName || 'General Administration'}
+                          {mda?.code ? ` (${mda.code})` : ''}
                         </div>
                       </td>
 

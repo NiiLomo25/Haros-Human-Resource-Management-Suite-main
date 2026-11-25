@@ -8,6 +8,7 @@ import { History, Search, X, CheckCircle2 } from 'lucide-react';
 import { db } from '../../db/storage';
 import { AuditTrailLog } from '../../types';
 import { SlideOverPanel } from '../common/SlideOverPanel';
+import { SearchableSelect } from '../common/SearchableSelect';
 
 interface AuditTrailModalProps {
   isOpen: boolean;
@@ -68,33 +69,35 @@ export const AuditTrailModal: React.FC<AuditTrailModalProps> = ({ isOpen, onClos
           </div>
 
           <div className="flex items-center space-x-2">
-            <select
+            <SearchableSelect
               value={selectedModule}
-              onChange={(e) => setSelectedModule(e.target.value)}
-              className="h-8 px-2 rounded border border-slate-300 bg-white text-xs"
-            >
-              <option value="ALL">All Modules</option>
-              {uniqueModules.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedModule}
+              options={[
+                { value: 'ALL', label: 'All Modules' },
+                ...uniqueModules.map((m) => ({ value: m, label: m })),
+              ]}
+              placeholder="All Modules"
+              searchPlaceholder="Filter modules..."
+              buttonClassName="h-8 px-2 rounded border border-slate-300 bg-white text-xs text-slate-700 w-44"
+            />
 
-            <select
+            <SearchableSelect
               value={selectedAction}
-              onChange={(e) => setSelectedAction(e.target.value)}
-              className="h-8 px-2 rounded border border-slate-300 bg-white text-xs"
-            >
-              <option value="ALL">All Actions</option>
-              <option value="INSERT">INSERT</option>
-              <option value="UPDATE">UPDATE</option>
-              <option value="DELETE">DELETE</option>
-              <option value="APPROVE_MOVEMENT">APPROVE_MOVEMENT</option>
-              <option value="LOGIN">LOGIN</option>
-              <option value="SECURITY">SECURITY</option>
-              <option value="SYSTEM_INIT">SYSTEM_INIT</option>
-            </select>
+              onChange={setSelectedAction}
+              options={[
+                { value: 'ALL', label: 'All Actions' },
+                { value: 'INSERT', label: 'INSERT' },
+                { value: 'UPDATE', label: 'UPDATE' },
+                { value: 'DELETE', label: 'DELETE' },
+                { value: 'APPROVE_MOVEMENT', label: 'APPROVE_MOVEMENT' },
+                { value: 'LOGIN', label: 'LOGIN' },
+                { value: 'SECURITY', label: 'SECURITY' },
+                { value: 'SYSTEM_INIT', label: 'SYSTEM_INIT' },
+              ]}
+              placeholder="All Actions"
+              searchPlaceholder="Filter actions..."
+              buttonClassName="h-8 px-2 rounded border border-slate-300 bg-white text-xs text-slate-700 w-44"
+            />
 
             <span className="hidden md:inline-flex items-center px-2 py-1 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono font-semibold">
               <CheckCircle2 className="w-3 h-3 mr-1" />

@@ -29,7 +29,7 @@ import {
 import { db } from '../../db/storage';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
-import { Department, Mda, Unit, Employee, EmployeePersonalInfo } from '../../types';
+import { Department, Mda, Unit, Employee, EmployeePersonalInfo, EmployeeEmploymentInfo, EstablishmentPosition } from '../../types';
 import { SearchableSelect } from '../common/SearchableSelect';
 import { SlideOverPanel } from '../common/SlideOverPanel';
 
@@ -84,52 +84,92 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
   const employees = useMemo(() => db.getEmployees(), [dataVersion]);
   const establishments = useMemo(() => db.getEstablishmentPositions(), [dataVersion]);
 
+  // Single-pass employee dossier index — resolves employment/personal info once
+  // per employee instead of re-scanning storage for every MDA/department/roster.
+  const employeeIndex = useMemo(() => {
+    const map = new Map<number, { employment?: EmployeeEmploymentInfo; personal?: EmployeePersonalInfo }>();
+    employees.forEach((emp) => {
+      map.set(emp.id, {
+        employment: db.getEmployeeEmploymentInfo(emp.id),
+        personal: db.getEmployeePersonalInfo(emp.id),
+      });
+    });
+    return map;
+  }, [employees]);
+
+  // Workforce buckets built in ONE pass over employees/units/establishments:
+  // active staff per department, cadre tallies, active headcount per MDA,
+  // units per department, and active establishment posts per department.
+  const workforceBuckets = useMemo(() => {
+    const staffByDept = new Map<number, Employee[]>();
+    const cadreByDept = new Map<number, { professional: number; subProfessional: number }>();
+    const staffCountByMda = new Map<number, number>();
+    const unitsByDept = new Map<number, Unit[]>();
+    const estByDept = new Map<number, EstablishmentPosition[]>();
+
+    employees.forEach((emp) => {
+      const info = employeeIndex.get(emp.id)?.employment;
+      if (info?.currentEmploymentStatus !== 'Active') return;
+      if (info.currentDepartmentId) {
+        const arr = staffByDept.get(info.currentDepartmentId) || [];
+        arr.push(emp);
+        staffByDept.set(info.currentDepartmentId, arr);
+        const cadre = cadreByDept.get(info.currentDepartmentId) || { professional: 0, subProfessional: 0 };
+        if (info.employeeCategory === 'Professional') cadre.professional++;
+        else if (info.employeeCategory === 'Sub-Professional') cadre.subProfessional++;
+        cadreByDept.set(info.currentDepartmentId, cadre);
+      }
+      if (info.currentMdaId) {
+        staffCountByMda.set(info.currentMdaId, (staffCountByMda.get(info.currentMdaId) || 0) + 1);
+      }
+    });
+
+    units.forEach((u) => {
+      const arr = unitsByDept.get(u.departmentId) || [];
+      arr.push(u);
+      unitsByDept.set(u.departmentId, arr);
+    });
+    establishments.forEach((e) => {
+      if (e.status !== 'Active') return;
+      const arr = estByDept.get(e.departmentId) || [];
+      arr.push(e);
+      estByDept.set(e.departmentId, arr);
+    });
+
+    return { staffByDept, cadreByDept, staffCountByMda, unitsByDept, estByDept };
+  }, [employees, employeeIndex, units, establishments]);
+
   // Compute departmental intelligence (staff count, cadre distribution, establishment quota)
   const departmentStats = useMemo(() => {
+    const mdaById = new Map(mdas.map((m) => [m.id, m]));
     return departments.map((dept) => {
-      // Find all officers assigned to this department
-      const staffInDept = employees.filter((emp) => {
-        const empInfo = db.getEmployeeEmploymentInfo(emp.id);
-        return empInfo?.currentDepartmentId === dept.id && empInfo?.currentEmploymentStatus === 'Active';
-      });
-
-      const professionalCount = staffInDept.filter((emp) => {
-        const empInfo = db.getEmployeeEmploymentInfo(emp.id);
-        return empInfo?.employeeCategory === 'Professional';
-      }).length;
-
-      const subProfessionalCount = staffInDept.filter((emp) => {
-        const empInfo = db.getEmployeeEmploymentInfo(emp.id);
-        return empInfo?.employeeCategory === 'Sub-Professional';
-      }).length;
+      const staffInDept = workforceBuckets.staffByDept.get(dept.id) || [];
+      const cadre = workforceBuckets.cadreByDept.get(dept.id) || { professional: 0, subProfessional: 0 };
 
       // Find department head officer
-      let headOfficerName = 'Vacant / Unassigned';
-      if (dept.departmentHeadEmployeeId) {
-        const headPersonal = db.getEmployeePersonalInfo(dept.departmentHeadEmployeeId);
-        if (headPersonal) {
-          headOfficerName = headPersonal.fullName || `${headPersonal.firstName} ${headPersonal.surname}`;
-        }
-      }
+      const headPersonal = dept.departmentHeadEmployeeId
+        ? employeeIndex.get(dept.departmentHeadEmployeeId)?.personal
+        : undefined;
+      const headOfficerName = headPersonal
+        ? headPersonal.fullName || `${headPersonal.firstName} ${headPersonal.surname}`
+        : 'Vacant / Unassigned';
 
       // Department units
-      const deptUnits = units.filter((u) => u.departmentId === dept.id);
+      const deptUnits = workforceBuckets.unitsByDept.get(dept.id) || [];
 
       // Establishment quota
-      const deptEstablishments = establishments.filter((e) => e.departmentId === dept.id && e.status === 'Active');
+      const deptEstablishments = workforceBuckets.estByDept.get(dept.id) || [];
       const approvedCadre = deptEstablishments.reduce((sum, e) => sum + e.approvedCadreQuota, 0);
       const occupiedCadre = staffInDept.length;
       const vacantPosts = Math.max(0, approvedCadre - occupiedCadre);
 
-      const mda = mdas.find((m) => m.id === dept.mdaId);
-
       return {
         department: dept,
-        mda,
+        mda: mdaById.get(dept.mdaId),
         staffCount: staffInDept.length,
         staffList: staffInDept,
-        professionalCount,
-        subProfessionalCount,
+        professionalCount: cadre.professional,
+        subProfessionalCount: cadre.subProfessional,
         unitsCount: deptUnits.length,
         units: deptUnits,
         headOfficerName,
@@ -138,7 +178,7 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
         vacantPosts,
       };
     });
-  }, [departments, employees, units, establishments, mdas]);
+  }, [departments, mdas, workforceBuckets, employeeIndex]);
 
   // Filtered department list
   const filteredDepartments = useMemo(() => {
@@ -162,20 +202,15 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
   const mdaStats = useMemo(() => {
     return mdas.map((mda) => {
       const mdaDepts = departmentStats.filter((d) => d.department.mdaId === mda.id);
-      const staffCount = employees.filter((emp) => {
-        const empInfo = db.getEmployeeEmploymentInfo(emp.id);
-        return empInfo?.currentMdaId === mda.id && empInfo?.currentEmploymentStatus === 'Active';
-      }).length;
+      const staffCount = workforceBuckets.staffCountByMda.get(mda.id) || 0;
       const approvedCadre = mdaDepts.reduce((sum, d) => sum + d.approvedCadre, 0);
 
-      let headOfficerName = 'Vacant / Unassigned';
-      if (mda.headEmployeeId) {
-        const headPersonal = db.getEmployeePersonalInfo(mda.headEmployeeId);
-        if (headPersonal) {
-          headOfficerName =
-            headPersonal.fullName || `${headPersonal.firstName} ${headPersonal.surname}`;
-        }
-      }
+      const headPersonal = mda.headEmployeeId
+        ? employeeIndex.get(mda.headEmployeeId)?.personal
+        : undefined;
+      const headOfficerName = headPersonal
+        ? headPersonal.fullName || `${headPersonal.firstName} ${headPersonal.surname}`
+        : 'Vacant / Unassigned';
 
       return {
         mda,
@@ -185,7 +220,7 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
         headOfficerName,
       };
     });
-  }, [mdas, departmentStats, employees]);
+  }, [mdas, departmentStats, workforceBuckets, employeeIndex]);
 
   const filteredMdas = useMemo(() => {
     if (!searchTerm.trim()) return mdaStats;
@@ -208,6 +243,26 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
     const totalApprovedCadre = departmentStats.reduce((sum, d) => sum + d.approvedCadre, 0);
     return { totalDepts, totalUnits, totalStaff, assignedHeads, totalApprovedCadre };
   }, [departments, units, departmentStats]);
+
+  // Memoized officer options for head-of-department / head-of-MDA selectors —
+  // avoids re-mapping every employee (and their personal info) on each render.
+  const headOfficerOptions = useMemo(
+    () =>
+      employees.map((emp) => {
+        const pers = employeeIndex.get(emp.id)?.personal;
+        const name =
+          pers?.fullName ||
+          `${pers?.firstName ?? ''} ${pers?.surname ?? ''}`.trim() ||
+          'Officer';
+        return {
+          value: emp.id.toString(),
+          label: `${emp.staffId} - ${name}`,
+        };
+      }),
+    [employees, employeeIndex]
+  );
+
+  const vacantOption = { value: '', label: '-- Leave Unassigned / Vacant --' };
 
   // Form state for creating Ministry / MDA
   const [newMdaCode, setNewMdaCode] = useState('');
@@ -631,18 +686,17 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
         {activeView !== 'mdas' && (
           <div className="flex items-center space-x-2 w-full md:w-auto">
             <span className="text-xs text-slate-500 whitespace-nowrap">Filter by MDA:</span>
-            <select
+            <SearchableSelect
               value={selectedMdaId}
-              onChange={(e) => setSelectedMdaId(e.target.value)}
-              className="text-xs bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 text-slate-700 font-medium focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="all">All MDAs ({departments.length} Depts)</option>
-              {mdas.map((m) => (
-                <option key={m.id} value={m.id.toString()}>
-                  {m.code} - {m.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedMdaId}
+              options={[
+                { value: 'all', label: `All MDAs (${departments.length} Depts)` },
+                ...mdas.map((m) => ({ value: m.id.toString(), label: `${m.code} - ${m.name}`, subLabel: m.mdaType })),
+              ]}
+              placeholder="All MDAs"
+              searchPlaceholder="Filter MDAs..."
+              buttonClassName="text-xs bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 text-slate-700 font-medium focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-56 h-8"
+            />
             {selectedMdaId !== 'all' && hasPermission('org.manage') && (() => {
               const chosenMda = mdas.find((m) => m.id.toString() === selectedMdaId);
               if (!chosenMda) return null;
@@ -719,9 +773,9 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
                     </div>
                   </div>
 
-                  {/* Title & MDA */}
-                  <h3 className="font-bold text-slate-900 text-sm mt-2">{dept.departmentName}</h3>
-                  <p className="text-[11px] text-slate-500">{item.mda?.name}</p>
+                  {/* Title & MDA — MDA name is the primary heading, department beneath */}
+                  <h3 className="font-bold text-slate-900 text-base mt-2">{item.mda?.name || 'Civil Service'}</h3>
+                  <p className="text-[11px] text-slate-500">{dept.departmentName}</p>
 
                   {/* Head of Department */}
                   <div className="mt-3 p-2 rounded bg-slate-50 border border-slate-200 flex items-center space-x-2 text-xs">
@@ -1113,12 +1167,12 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
         onClose={() => setInspectDeptId(null)}
         title={
           activeRosterData
-            ? `${activeRosterData.department.departmentCode} — ${activeRosterData.department.departmentName}`
+            ? `${activeRosterData.mda?.name || 'Civil Service'} — ${activeRosterData.department.departmentName}`
             : 'Departmental Nominal Roster'
         }
         subtitle={
           activeRosterData
-            ? `${activeRosterData.mda?.name || 'Civil Service'} • Head: ${activeRosterData.headOfficerName}`
+            ? `${activeRosterData.department.departmentCode} • Head: ${activeRosterData.headOfficerName}`
             : undefined
         }
         icon={<Users className="w-4 h-4" />}
@@ -1299,17 +1353,18 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                 Parent MDA / Institution <span className="text-red-500">*</span>
               </label>
-              <select
-                value={newDeptMdaId}
-                onChange={(e) => setNewDeptMdaId(parseInt(e.target.value))}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-              >
-                {mdas.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.code} - {m.name}
-                  </option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={newDeptMdaId.toString()}
+                onChange={(val) => setNewDeptMdaId(parseInt(val, 10))}
+                options={mdas.map((m) => ({
+                  value: m.id.toString(),
+                  label: `${m.code} - ${m.name}`,
+                  subLabel: m.mdaType,
+                }))}
+                placeholder="Select MDA..."
+                searchPlaceholder="Filter MDAs..."
+                buttonClassName="w-full p-2.5 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 h-10"
+              />
             </div>
 
             <div>
@@ -1344,21 +1399,13 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                 Designate Head of Department (Optional)
               </label>
-              <select
+              <SearchableSelect
                 value={newDeptHeadId}
-                onChange={(e) => setNewDeptHeadId(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-              >
-                <option value="">-- Leave Unassigned / Vacant --</option>
-                {employees.map((emp) => {
-                  const pers = db.getEmployeePersonalInfo(emp.id);
-                  return (
-                    <option key={emp.id} value={emp.id.toString()}>
-                      {emp.staffId} - {pers?.fullName || `${pers?.firstName} ${pers?.surname}`}
-                    </option>
-                  );
-                })}
-              </select>
+                onChange={setNewDeptHeadId}
+                options={[vacantOption, ...headOfficerOptions]}
+                placeholder="-- Leave Unassigned / Vacant --"
+                searchPlaceholder="Search officer by Staff ID or name..."
+              />
             </div>
           </div>
 
@@ -1494,37 +1541,32 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                 Institutional Classification <span className="text-red-500">*</span>
               </label>
-              <select
+              <SearchableSelect
                 value={newMdaType}
-                onChange={(e) => setNewMdaType(e.target.value as any)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-              >
-                <option value="Ministry">Central Government Ministry</option>
-                <option value="Department">Extra-Ministerial Department</option>
-                <option value="Agency">Executive Agency / Authority</option>
-                <option value="Commission">Constitutional / Statutory Commission</option>
-              </select>
+                onChange={(val) => setNewMdaType(val as 'Ministry' | 'Department' | 'Agency' | 'Commission')}
+                options={[
+                  { value: 'Ministry', label: 'Central Government Ministry' },
+                  { value: 'Department', label: 'Extra-Ministerial Department' },
+                  { value: 'Agency', label: 'Executive Agency / Authority' },
+                  { value: 'Commission', label: 'Constitutional / Statutory Commission' },
+                ]}
+                placeholder="Select classification..."
+                searchPlaceholder="Filter classifications..."
+                buttonClassName="w-full p-2.5 bg-slate-50 border border-slate-300 rounded text-slate-800 font-medium focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 h-10"
+              />
             </div>
 
             <div>
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                 Designated Head / Minister / Chief Director (Optional)
               </label>
-              <select
+              <SearchableSelect
                 value={newMdaHeadId}
-                onChange={(e) => setNewMdaHeadId(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-              >
-                <option value="">-- Leave Unassigned / Vacant --</option>
-                {employees.map((emp) => {
-                  const pers = db.getEmployeePersonalInfo(emp.id);
-                  return (
-                    <option key={emp.id} value={emp.id.toString()}>
-                      {emp.staffId} - {pers?.fullName || `${pers?.firstName} ${pers?.surname}`}
-                    </option>
-                  );
-                })}
-              </select>
+                onChange={setNewMdaHeadId}
+                options={[vacantOption, ...headOfficerOptions]}
+                placeholder="-- Leave Unassigned / Vacant --"
+                searchPlaceholder="Search officer by Staff ID or name..."
+              />
             </div>
           </div>
 

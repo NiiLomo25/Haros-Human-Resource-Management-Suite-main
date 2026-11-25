@@ -287,19 +287,51 @@ export class DatabaseService {
     return DatabaseService.instance;
   }
 
+  // Parse cache keyed by the exact stored string. Any write — through setItem,
+  // a direct localStorage write, hydration, reset, or restore — changes the raw
+  // value and automatically invalidates the cached parse.
+  private itemParseCache = new Map<string, { raw: string | null; value: unknown }>();
+  private personalInfoIndex = new Map<number, EmployeePersonalInfo>();
+  private personalInfoIndexRaw: string | null = null;
+  private employmentInfoIndex = new Map<number, EmployeeEmploymentInfo>();
+  private employmentInfoIndexRaw: string | null = null;
+
   private getItem<T>(key: string, defaultValue: T): T {
+    const fullKey = STORAGE_PREFIX + key;
+    let raw: string | null = null;
     try {
-      const stored = localStorage.getItem(STORAGE_PREFIX + key);
-      return stored ? JSON.parse(stored) : defaultValue;
+      raw = localStorage.getItem(fullKey);
     } catch {
-      return defaultValue;
+      raw = null;
     }
+    const cached = this.itemParseCache.get(key);
+    if (cached && cached.raw === raw) {
+      return cached.value as T;
+    }
+    if (raw === null) {
+      // Never cache the shared defaultValue — callers may mutate the returned
+      // collection before persisting it, and each call must get a fresh copy.
+      try {
+        return raw ? JSON.parse(raw) : defaultValue;
+      } catch {
+        return defaultValue;
+      }
+    }
+    let value: T;
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      value = defaultValue;
+    }
+    this.itemParseCache.set(key, { raw, value });
+    return value;
   }
 
   private setItem<T>(key: string, value: T): void {
     const fullKey = STORAGE_PREFIX + key;
     const serialized = JSON.stringify(value);
     localStorage.setItem(fullKey, serialized);
+    this.itemParseCache.set(key, { raw: serialized, value });
     syncDesktopSet(fullKey, serialized);
   }
 
@@ -724,13 +756,27 @@ export class DatabaseService {
   }
 
   public getEmployeePersonalInfo(employeeId: number): EmployeePersonalInfo | undefined {
-    const records = this.getItem<EmployeePersonalInfo[]>('personalInfo', []);
-    return records.find((p) => p.employeeId === employeeId);
+    const fullKey = STORAGE_PREFIX + 'personalInfo';
+    const raw = localStorage.getItem(fullKey);
+    if (raw !== this.personalInfoIndexRaw) {
+      this.personalInfoIndexRaw = raw;
+      this.personalInfoIndex = new Map(
+        this.getItem<EmployeePersonalInfo[]>('personalInfo', []).map((p) => [p.employeeId, p])
+      );
+    }
+    return this.personalInfoIndex.get(employeeId);
   }
 
   public getEmployeeEmploymentInfo(employeeId: number): EmployeeEmploymentInfo | undefined {
-    const records = this.getItem<EmployeeEmploymentInfo[]>('employmentInfo', []);
-    return records.find((e) => e.employeeId === employeeId);
+    const fullKey = STORAGE_PREFIX + 'employmentInfo';
+    const raw = localStorage.getItem(fullKey);
+    if (raw !== this.employmentInfoIndexRaw) {
+      this.employmentInfoIndexRaw = raw;
+      this.employmentInfoIndex = new Map(
+        this.getItem<EmployeeEmploymentInfo[]>('employmentInfo', []).map((e) => [e.employeeId, e])
+      );
+    }
+    return this.employmentInfoIndex.get(employeeId);
   }
 
   public getEmployeeQualifications(employeeId: number): EmployeeQualification[] {

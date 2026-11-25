@@ -888,22 +888,25 @@ export const StaffMovementView: React.FC<StaffMovementViewProps> = ({ onSelectEm
                 <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                   Movement Category <span className="text-red-500">*</span>
                 </label>
-                <select
+                <SearchableSelect
                   value={formMovementType}
-                  onChange={(e) => setFormMovementType(e.target.value as MovementType)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
-                >
-                  <option value="Transfer">Transfer (Inter-departmental / Inter-agency)</option>
-                  <option value="Posting">Posting (Operational assignment)</option>
-                  <option value="Inter-MDA Movement">Inter-MDA Movement (Cross-ministerial)</option>
-                  <option value="Secondment">Secondment (Temporary statutory transfer)</option>
-                  <option value="Return from Secondment">Return from Secondment</option>
-                  <option value="Acting Appointment">Acting Appointment (Higher responsibility)</option>
-                  <option value="Redeployment">Redeployment (Organizational realignment)</option>
-                  <option value="Reassignment">Reassignment (Role adjustment)</option>
-                  <option value="Promotion">Promotion (Grade elevation)</option>
-                  <option value="Demotion">Demotion</option>
-                </select>
+                  onChange={(val) => setFormMovementType(val as MovementType)}
+                  options={[
+                    { value: 'Transfer', label: 'Transfer (Inter-departmental / Inter-agency)' },
+                    { value: 'Posting', label: 'Posting (Operational assignment)' },
+                    { value: 'Inter-MDA Movement', label: 'Inter-MDA Movement (Cross-ministerial)' },
+                    { value: 'Secondment', label: 'Secondment (Temporary statutory transfer)' },
+                    { value: 'Return from Secondment', label: 'Return from Secondment' },
+                    { value: 'Acting Appointment', label: 'Acting Appointment (Higher responsibility)' },
+                    { value: 'Redeployment', label: 'Redeployment (Organizational realignment)' },
+                    { value: 'Reassignment', label: 'Reassignment (Role adjustment)' },
+                    { value: 'Promotion', label: 'Promotion (Grade elevation)' },
+                    { value: 'Demotion', label: 'Demotion' },
+                  ]}
+                  placeholder="Select movement type..."
+                  searchPlaceholder="Filter movement types..."
+                  buttonClassName="w-full p-2.5 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 h-10"
+                />
               </div>
 
               <div>
@@ -929,39 +932,40 @@ export const StaffMovementView: React.FC<StaffMovementViewProps> = ({ onSelectEm
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-semibold text-slate-600 mb-1">Destination MDA</label>
-                  <select
-                    value={formNewMdaId}
-                    onChange={(e) => {
-                      const mdaId = parseInt(e.target.value);
+                  <SearchableSelect
+                    value={formNewMdaId.toString()}
+                    onChange={(val) => {
+                      const mdaId = parseInt(val, 10);
                       setFormNewMdaId(mdaId);
                       const firstDept = departments.find((d) => d.mdaId === mdaId);
                       if (firstDept) setFormNewDeptId(firstDept.id);
                     }}
-                    className="w-full p-2 bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-600"
-                  >
-                    {mdas.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.code} - {m.name}
-                      </option>
-                    ))}
-                  </select>
+                    options={mdas.map((m) => ({
+                      value: m.id.toString(),
+                      label: `${m.code} - ${m.name}`,
+                      subLabel: m.mdaType,
+                    }))}
+                    placeholder="Select MDA..."
+                    searchPlaceholder="Filter MDAs..."
+                    buttonClassName="w-full p-2 bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-600 h-9"
+                  />
                 </div>
 
                 <div>
                   <label className="block text-[10px] font-semibold text-slate-600 mb-1">Destination Department</label>
-                  <select
-                    value={formNewDeptId}
-                    onChange={(e) => setFormNewDeptId(parseInt(e.target.value))}
-                    className="w-full p-2 bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-600"
-                  >
-                    {departments
+                  <SearchableSelect
+                    value={formNewDeptId.toString()}
+                    onChange={(val) => setFormNewDeptId(parseInt(val, 10))}
+                    options={departments
                       .filter((d) => d.mdaId === formNewMdaId)
-                      .map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.departmentCode} - {d.departmentName}
-                        </option>
-                      ))}
-                  </select>
+                      .map((d) => ({
+                        value: d.id.toString(),
+                        label: `${d.departmentCode} - ${d.departmentName}`,
+                      }))}
+                    placeholder="Select department..."
+                    searchPlaceholder="Filter departments..."
+                    buttonClassName="w-full p-2 bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-600 h-9"
+                  />
                 </div>
               </div>
 
@@ -979,17 +983,14 @@ export const StaffMovementView: React.FC<StaffMovementViewProps> = ({ onSelectEm
 
                 <div>
                   <label className="block text-[10px] font-semibold text-slate-600 mb-1">Target Grade Level</label>
-                  <select
-                    value={formNewGradeId}
-                    onChange={(e) => setFormNewGradeId(parseInt(e.target.value))}
-                    className="w-full p-2 bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-600"
-                  >
-                    {gradeLevels.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.gradeName}
-                      </option>
-                    ))}
-                  </select>
+                  <SearchableSelect
+                    value={formNewGradeId.toString()}
+                    onChange={(val) => setFormNewGradeId(parseInt(val, 10))}
+                    options={gradeLevels.map((g) => ({ value: g.id.toString(), label: g.gradeName }))}
+                    placeholder="Select grade..."
+                    searchPlaceholder="Filter grade levels..."
+                    buttonClassName="w-full p-2 bg-white border border-slate-300 rounded text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-600 h-9"
+                  />
                 </div>
 
                 <div>
