@@ -220,9 +220,10 @@ export interface GradeLevel {
 export interface EstablishmentPosition {
   id: number;
   positionCode: string;
-  departmentId: number;
+  mdaId: number;
   gradeId: number;
   positionTitle: string;
+  officerEmployeeId?: number;
   approvedCadreQuota: number;
   status: 'Active' | 'Frozen' | 'Abolished';
 }
@@ -429,6 +430,53 @@ export interface TrainingNomination {
   certificateNumber?: string;
   evaluationScore?: number;
   feedbackNotes?: string;
+}
+
+export type ScheduledTrainingType = 'Goods' | 'Works' | 'Technical Services' | 'Consultancy';
+export type ScheduledTrainingMode = 'In-Person' | 'Online';
+export type ScheduledTrainingFunding = 'Paid' | 'Free';
+export type ScheduledTrainingCertification = 'Certified' | 'Non-Certified';
+export type ScheduledTrainingStatus = 'Scheduled' | 'Approved' | 'Completed' | 'Cancelled';
+
+export interface ScheduledTrainingParticipant {
+  employeeId: number;
+  attended?: boolean;
+  certificateIssued?: boolean;
+  certificateNumber?: string;
+}
+
+export interface ScheduledTrainingDocument {
+  documentName: string;
+  fileName: string;
+  fileSize?: number;
+  uploadedAt: string;
+}
+
+export interface ScheduledTraining {
+  id: number;
+  scheduleCode: string;
+  trainingTitle: string;
+  trainingDate: string;
+  endDate?: string;
+  trainingType: ScheduledTrainingType;
+  deliveryMode: ScheduledTrainingMode;
+  fundingType: ScheduledTrainingFunding;
+  certification: ScheduledTrainingCertification;
+  provider: string;
+  venueOrPlatform: string;
+  budgetGhs: number;
+  actualCostGhs?: number;
+  targetMdaId: number;
+  expectedParticipants: number;
+  participants: ScheduledTrainingParticipant[];
+  status: ScheduledTrainingStatus;
+  outcomes?: string;
+  lessonsLearned?: string;
+  recommendations?: string;
+  documents: ScheduledTrainingDocument[];
+  reminderMarkersSent: number[];
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface PerformanceAppraisal {

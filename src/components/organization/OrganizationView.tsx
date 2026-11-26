@@ -99,13 +99,14 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
 
   // Workforce buckets built in ONE pass over employees/units/establishments:
   // active staff per department, cadre tallies, active headcount per MDA,
-  // units per department, and active establishment posts per department.
+  // units per department, and active establishment posts per MDA.
   const workforceBuckets = useMemo(() => {
     const staffByDept = new Map<number, Employee[]>();
     const cadreByDept = new Map<number, { professional: number; subProfessional: number }>();
     const staffCountByMda = new Map<number, number>();
     const unitsByDept = new Map<number, Unit[]>();
-    const estByDept = new Map<number, EstablishmentPosition[]>();
+    const estByMda = new Map<number, EstablishmentPosition[]>();
+    const estApprovedByMda = new Map<number, number>();
 
     employees.forEach((emp) => {
       const info = employeeIndex.get(emp.id)?.employment;
@@ -131,12 +132,13 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
     });
     establishments.forEach((e) => {
       if (e.status !== 'Active') return;
-      const arr = estByDept.get(e.departmentId) || [];
+      const arr = estByMda.get(e.mdaId) || [];
       arr.push(e);
-      estByDept.set(e.departmentId, arr);
+      estByMda.set(e.mdaId, arr);
+      estApprovedByMda.set(e.mdaId, (estApprovedByMda.get(e.mdaId) || 0) + e.approvedCadreQuota);
     });
 
-    return { staffByDept, cadreByDept, staffCountByMda, unitsByDept, estByDept };
+    return { staffByDept, cadreByDept, staffCountByMda, unitsByDept, estByMda, estApprovedByMda };
   }, [employees, employeeIndex, units, establishments]);
 
   // Compute departmental intelligence (staff count, cadre distribution, establishment quota)
@@ -157,10 +159,10 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
       // Department units
       const deptUnits = workforceBuckets.unitsByDept.get(dept.id) || [];
 
-      // Establishment quota
-      const deptEstablishments = workforceBuckets.estByDept.get(dept.id) || [];
-      const approvedCadre = deptEstablishments.reduce((sum, e) => sum + e.approvedCadreQuota, 0);
-      const occupiedCadre = staffInDept.length;
+      // Establishment quota is MDA-scoped: show the parent MDA's approved
+      // ceiling against the MDA's total active headcount.
+      const approvedCadre = workforceBuckets.estApprovedByMda.get(dept.mdaId) || 0;
+      const occupiedCadre = workforceBuckets.staffCountByMda.get(dept.mdaId) || 0;
       const vacantPosts = Math.max(0, approvedCadre - occupiedCadre);
 
       return {
@@ -203,7 +205,7 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
     return mdas.map((mda) => {
       const mdaDepts = departmentStats.filter((d) => d.department.mdaId === mda.id);
       const staffCount = workforceBuckets.staffCountByMda.get(mda.id) || 0;
-      const approvedCadre = mdaDepts.reduce((sum, d) => sum + d.approvedCadre, 0);
+      const approvedCadre = workforceBuckets.estApprovedByMda.get(mda.id) || 0;
 
       const headPersonal = mda.headEmployeeId
         ? employeeIndex.get(mda.headEmployeeId)?.personal
@@ -240,9 +242,9 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
     const totalUnits = units.length;
     const totalStaff = departmentStats.reduce((sum, d) => sum + d.staffCount, 0);
     const assignedHeads = departments.filter((d) => d.departmentHeadEmployeeId).length;
-    const totalApprovedCadre = departmentStats.reduce((sum, d) => sum + d.approvedCadre, 0);
+    const totalApprovedCadre = Array.from(workforceBuckets.estApprovedByMda.values()).reduce((sum, v) => sum + v, 0);
     return { totalDepts, totalUnits, totalStaff, assignedHeads, totalApprovedCadre };
-  }, [departments, units, departmentStats]);
+  }, [departments, units, departmentStats, workforceBuckets]);
 
   // Memoized officer options for head-of-department / head-of-MDA selectors —
   // avoids re-mapping every employee (and their personal info) on each render.
@@ -813,7 +815,7 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
                     {/* Cadre Quota Fill Bar */}
                     <div className="pt-2">
                       <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
-                        <span>Establishment Quota:</span>
+                        <span>MDA Establishment Quota:</span>
                         <span className="font-bold">
                           {item.occupiedCadre} / {item.approvedCadre} Posts
                         </span>
@@ -1195,7 +1197,7 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ onSelectEmpl
                 <div className="font-black text-amber-900 text-sm">{activeRosterData.subProfessionalCount}</div>
               </div>
               <div>
-                <span className="text-slate-500 text-[10px] uppercase font-semibold">Cadre Ceiling:</span>
+                <span className="text-slate-500 text-[10px] uppercase font-semibold">MDA Cadre Ceiling:</span>
                 <div className="font-black text-slate-900 text-sm">
                   {activeRosterData.occupiedCadre} / {activeRosterData.approvedCadre} Posts
                 </div>

@@ -110,12 +110,12 @@ export const INITIAL_GRADE_LEVELS: GradeLevel[] = [
 ];
 
 export const INITIAL_ESTABLISHMENT: EstablishmentPosition[] = [
-  { id: 1, positionCode: 'EST-OHCS-DIR-01', departmentId: 1, gradeId: 9, positionTitle: 'Director of Human Resources', approvedCadreQuota: 1, status: 'Active' },
-  { id: 2, positionCode: 'EST-OHCS-PRIN-01', departmentId: 1, gradeId: 7, positionTitle: 'Principal Human Resource Manager', approvedCadreQuota: 3, status: 'Active' },
-  { id: 3, positionCode: 'EST-OHCS-SEN-01', departmentId: 1, gradeId: 6, positionTitle: 'Senior Human Resource Officer', approvedCadreQuota: 6, status: 'Active' },
-  { id: 4, positionCode: 'EST-MOF-DIR-01', departmentId: 4, gradeId: 9, positionTitle: 'Director of National Budget', approvedCadreQuota: 1, status: 'Active' },
-  { id: 5, positionCode: 'EST-MOF-PRIN-01', departmentId: 4, gradeId: 7, positionTitle: 'Principal Budget Analyst', approvedCadreQuota: 5, status: 'Active' },
-  { id: 6, positionCode: 'EST-MOF-SEN-01', departmentId: 4, gradeId: 6, positionTitle: 'Senior Budget Analyst', approvedCadreQuota: 10, status: 'Active' },
+  { id: 1, positionCode: 'EST-OHCS-DIR-01', mdaId: 1, gradeId: 9, positionTitle: 'Director of Human Resources', approvedCadreQuota: 1, status: 'Active' },
+  { id: 2, positionCode: 'EST-OHCS-PRIN-01', mdaId: 1, gradeId: 7, positionTitle: 'Principal Human Resource Manager', approvedCadreQuota: 3, status: 'Active' },
+  { id: 3, positionCode: 'EST-OHCS-SEN-01', mdaId: 1, gradeId: 6, positionTitle: 'Senior Human Resource Officer', approvedCadreQuota: 6, status: 'Active' },
+  { id: 4, positionCode: 'EST-MOF-DIR-01', mdaId: 2, gradeId: 9, positionTitle: 'Director of National Budget', approvedCadreQuota: 1, status: 'Active' },
+  { id: 5, positionCode: 'EST-MOF-PRIN-01', mdaId: 2, gradeId: 7, positionTitle: 'Principal Budget Analyst', approvedCadreQuota: 5, status: 'Active' },
+  { id: 6, positionCode: 'EST-MOF-SEN-01', mdaId: 2, gradeId: 6, positionTitle: 'Senior Budget Analyst', approvedCadreQuota: 10, status: 'Active' },
 ];
 
 export const INITIAL_EMPLOYEES: Employee[] = [

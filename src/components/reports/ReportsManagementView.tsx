@@ -653,15 +653,24 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
           }
           return true;
         });
+        // Establishment posts are MDA-scoped: precompute per-MDA quota and headcount
+        const estQuotaByMda = new Map<number, number>();
+        establishment.forEach((est) => {
+          estQuotaByMda.set(est.mdaId, (estQuotaByMda.get(est.mdaId) || 0) + est.approvedCadreQuota);
+        });
+        const staffByMda = new Map<number, number>();
+        enrichedEmployees.forEach((e) => {
+          const mId = e.employment?.currentMdaId;
+          if (mId) staffByMda.set(mId, (staffByMda.get(mId) || 0) + 1);
+        });
         const rows = filteredDepts.map((dept) => {
           const deptEmps = enrichedEmployees.filter((e) => e.employment?.currentDepartmentId === dept.id);
           const mda = mdas.find((m) => m.id === dept.mdaId);
           const hod = dept.departmentHeadEmployeeId ? db.getEmployeePersonalInfo(dept.departmentHeadEmployeeId) : null;
           const male = deptEmps.filter((e) => e.personal?.gender === 'Male').length;
           const female = deptEmps.filter((e) => e.personal?.gender === 'Female').length;
-          const quota = establishment
-            .filter((est) => est.departmentId === dept.id)
-            .reduce((sum, est) => sum + est.approvedCadreQuota, 0);
+          const quota = estQuotaByMda.get(dept.mdaId) || 0;
+          const mdaVacancy = quota - (staffByMda.get(dept.mdaId) || 0);
           return [
             dept.departmentCode,
             mda?.name || '',
@@ -670,19 +679,23 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
             deptEmps.length,
             `${male} M / ${female} F`,
             quota,
-            quota - deptEmps.length,
+            mdaVacancy,
             dept.status,
           ];
         });
+        // KPIs dedupe by MDA since quota/vacancy columns repeat per department
+        const coveredMdaIds = new Set(filteredDepts.map((d) => d.mdaId));
+        const totalMdaQuota = Array.from(coveredMdaIds).reduce((s, id) => s + (estQuotaByMda.get(id) || 0), 0);
+        const totalMdaStaff = Array.from(coveredMdaIds).reduce((s, id) => s + (staffByMda.get(id) || 0), 0);
         return {
           kpis: [
             { label: 'Departments Covered', value: `${filteredDepts.length}` },
             { label: 'Assigned Staff', value: `${rows.reduce((s, r) => s + Number(r[4]), 0)}` },
-            { label: 'Authorized Est. Quota', value: `${rows.reduce((s, r) => s + Number(r[6]), 0)}` },
-            { label: 'Net Department Variance', value: `${rows.reduce((s, r) => s + Number(r[7]), 0)}` },
+            { label: 'Authorized Est. Quota', value: `${totalMdaQuota}` },
+            { label: 'Net Department Variance', value: `${totalMdaQuota - totalMdaStaff}` },
           ],
           tabular: {
-            headers: ['Dept Code', 'Parent MDA', 'Department Name', 'Head of Department', 'In-Post Staff', 'Gender Split', 'Est. Quota', 'Vacancies', 'Status'],
+            headers: ['Dept Code', 'Parent MDA', 'Department Name', 'Head of Department', 'In-Post Staff', 'Gender Split', 'MDA Quota', 'MDA Vacancies', 'Status'],
             rows,
             summaryRow: [
               'TOTAL',
@@ -691,8 +704,8 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
               '',
               rows.reduce((s, r) => s + Number(r[4]), 0),
               '',
-              rows.reduce((s, r) => s + Number(r[6]), 0),
-              rows.reduce((s, r) => s + Number(r[7]), 0),
+              totalMdaQuota,
+              totalMdaQuota - totalMdaStaff,
               '',
             ],
           },
@@ -976,9 +989,8 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
         const rows = filteredMdas.map((mda) => {
           const mdaEmps = enrichedEmployees.filter((e) => e.employment?.currentMdaId === mda.id);
           const mdaDepts = departments.filter((d) => d.mdaId === mda.id);
-          const mdaDeptIds = new Set(mdaDepts.map((d) => d.id));
           const quota = establishment
-            .filter((est) => mdaDeptIds.has(est.departmentId))
+            .filter((est) => est.mdaId === mda.id)
             .reduce((s, est) => s + est.approvedCadreQuota, 0);
           const male = mdaEmps.filter((e) => e.personal?.gender === 'Male').length;
           const female = mdaEmps.filter((e) => e.personal?.gender === 'Female').length;
@@ -1564,18 +1576,23 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
 
       // REP-17: Staff Establishment & Cadre Quota Register
       case 'establishment_register': {
+        const selectedDeptMdaId = selectedDepartmentId !== 'ALL'
+          ? departments.find((d) => d.id.toString() === selectedDepartmentId)?.mdaId
+          : undefined;
         const filteredEst = establishment.filter((est) => {
-          const dept = departments.find((d) => d.id === est.departmentId);
-          const mda = mdas.find((item) => item.id === dept?.mdaId);
-          if (selectedMdaId !== 'ALL' && dept?.mdaId.toString() !== selectedMdaId) return false;
-          if (selectedDepartmentId !== 'ALL' && est.departmentId.toString() !== selectedDepartmentId) return false;
+          const mda = mdas.find((item) => item.id === est.mdaId);
+          if (selectedMdaId !== 'ALL' && est.mdaId.toString() !== selectedMdaId) return false;
+          if (selectedDepartmentId !== 'ALL' && est.mdaId !== selectedDeptMdaId) return false;
           if (selectedGradeId !== 'ALL' && est.gradeId.toString() !== selectedGradeId) return false;
           if (qLower) {
+            const officer = est.officerEmployeeId ? employees.find((e) => e.id === est.officerEmployeeId) : undefined;
+            const officerPers = officer ? db.getEmployeePersonalInfo(officer.id) : undefined;
+            const officerName = officerPers?.fullName || `${officerPers?.firstName ?? ''} ${officerPers?.surname ?? ''}`.trim();
             return (
               est.positionCode.toLowerCase().includes(qLower) ||
               est.positionTitle.toLowerCase().includes(qLower) ||
-              (mda?.name || '').toLowerCase().includes(qLower) ||
-              (dept?.departmentName || '').toLowerCase().includes(qLower)
+              officerName.toLowerCase().includes(qLower) ||
+              (mda?.name || '').toLowerCase().includes(qLower)
             );
           }
           return true;
@@ -1584,8 +1601,7 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
         let totalQuota = 0;
         let totalInPost = 0;
         const rows = filteredEst.map((est) => {
-          const d = departments.find((dept) => dept.id === est.departmentId);
-          const m = mdas.find((mda) => mda.id === d?.mdaId);
+          const m = mdas.find((mda) => mda.id === est.mdaId);
           const g = grades.find((gr) => gr.id === est.gradeId);
           const inPost = employees.filter((e) => {
             const info = db.getEmployeeEmploymentInfo(e.id);
@@ -1593,7 +1609,7 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
               e.isActive &&
               info?.currentEmploymentStatus !== 'Separated' &&
               info?.currentEmploymentStatus !== 'Retired' &&
-              info?.currentDepartmentId === est.departmentId &&
+              info?.currentMdaId === est.mdaId &&
               info?.currentGradeId === est.gradeId
             );
           }).length;
@@ -1641,15 +1657,18 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
 
       // REP-18: Vacancy & Staffing Variance Analysis
       case 'vacancy_analysis': {
+        const selectedDeptMdaId = selectedDepartmentId !== 'ALL'
+          ? departments.find((d) => d.id.toString() === selectedDepartmentId)?.mdaId
+          : undefined;
         const filteredEst = establishment.filter((est) => {
-          const dept = departments.find((d) => d.id === est.departmentId);
-          if (selectedMdaId !== 'ALL' && dept?.mdaId.toString() !== selectedMdaId) return false;
-          if (selectedDepartmentId !== 'ALL' && est.departmentId.toString() !== selectedDepartmentId) return false;
+          const mda = mdas.find((m) => m.id === est.mdaId);
+          if (selectedMdaId !== 'ALL' && est.mdaId.toString() !== selectedMdaId) return false;
+          if (selectedDepartmentId !== 'ALL' && est.mdaId !== selectedDeptMdaId) return false;
           if (selectedGradeId !== 'ALL' && est.gradeId.toString() !== selectedGradeId) return false;
           if (qLower) {
             return (
               est.positionTitle.toLowerCase().includes(qLower) ||
-              (dept?.departmentName || '').toLowerCase().includes(qLower)
+              (mda?.name || '').toLowerCase().includes(qLower)
             );
           }
           return true;
@@ -1659,8 +1678,7 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
         let overEstablished = 0;
         let criticalDepts = 0;
         const rows = filteredEst.map((est) => {
-          const d = departments.find((dept) => dept.id === est.departmentId);
-          const m = mdas.find((mda) => mda.id === d?.mdaId);
+          const m = mdas.find((mda) => mda.id === est.mdaId);
           const g = grades.find((gr) => gr.id === est.gradeId);
           const inPost = employees.filter((e) => {
             const info = db.getEmployeeEmploymentInfo(e.id);
@@ -1668,7 +1686,7 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
               e.isActive &&
               info?.currentEmploymentStatus !== 'Separated' &&
               info?.currentEmploymentStatus !== 'Retired' &&
-              info?.currentDepartmentId === est.departmentId &&
+              info?.currentMdaId === est.mdaId &&
               info?.currentGradeId === est.gradeId
             );
           }).length;
@@ -1685,9 +1703,12 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
               : variance < 0
               ? 'Supernumerary / Redeploy Excess'
               : 'Optimal Capacity';
+          const officer = est.officerEmployeeId ? employees.find((e) => e.id === est.officerEmployeeId) : undefined;
+          const officerPers = officer ? db.getEmployeePersonalInfo(officer.id) : undefined;
+          const officerName = officerPers?.fullName || `${officerPers?.firstName ?? ''} ${officerPers?.surname ?? ''}`.trim();
           return [
             m?.name || '',
-            d?.departmentName || '',
+            officerName || '—',
             est.positionTitle,
             g?.gradeName || '',
             est.approvedCadreQuota,
@@ -1706,7 +1727,7 @@ export const ReportsManagementView: React.FC<ReportsManagementViewProps> = ({ on
             { label: 'Posts Evaluated', value: `${filteredEst.length}` },
           ],
           tabular: {
-            headers: ['MDA', 'Department', 'Position Title', 'Grade Title', 'Authorized', 'In-Post', 'Staffing Variance', 'Vacancy Gap %', 'HR Action Recommendation'],
+            headers: ['MDA', 'Civil Service Officer', 'Position Title', 'Grade Title', 'Authorized', 'In-Post', 'Staffing Variance', 'Vacancy Gap %', 'HR Action Recommendation'],
             rows,
           },
         };

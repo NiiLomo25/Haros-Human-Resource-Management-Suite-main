@@ -30,6 +30,7 @@ import {
   AttendanceRecord,
   TrainingProgram,
   TrainingNomination,
+  ScheduledTraining,
   PerformanceAppraisal,
   User,
   Role,
@@ -371,6 +372,25 @@ export class DatabaseService {
     return mergedGrades;
   }
 
+  /**
+   * Migrate persisted establishment posts from the legacy departmentId field
+   * to the MDA-scoped mdaId field, resolving each department's parent MDA.
+   * Runs on startup and after snapshot restores so older backups keep working.
+   */
+  private migrateEstablishmentMdaIds(): void {
+    const existingEstablishment = this.getItem<any[]>('establishment', []);
+    if (existingEstablishment.length === 0) return;
+    if (!existingEstablishment.some((p) => p.departmentId !== undefined && p.mdaId === undefined)) return;
+    const deptRows = this.getItem<Department[]>('departments', []);
+    const mdaByDeptId = new Map(deptRows.map((d) => [d.id, d.mdaId]));
+    const migratedEstablishment = existingEstablishment.map((p) => {
+      if (p.mdaId !== undefined) return p;
+      const { departmentId, ...rest } = p;
+      return { ...rest, mdaId: mdaByDeptId.get(departmentId) ?? departmentId };
+    });
+    this.setItem('establishment', migratedEstablishment);
+  }
+
   public ensureInitialized(): void {
     const storedEmployment = this.getItem<EmployeeEmploymentInfo[]>('employmentInfo', []);
     const hasOldCategories = storedEmployment.some((e: any) => e.employeeCategory === 'Civil Service');
@@ -405,6 +425,9 @@ export class DatabaseService {
         '13L': 'Assistant Procurement and Supply Chain Officer I',
         '11L': 'Assistant Procurement and Supply Chain Officer II',
       };
+
+      // Migrate persisted establishment posts from departmentId -> mdaId
+      this.migrateEstablishmentMdaIds();
 
       // Migrate persisted movement history entries from gradeCodeFrom/To -> gradeNameFrom/To
       const existingMovHist = this.getItem<any[]>('movementHistory', []);
@@ -642,6 +665,7 @@ export class DatabaseService {
       'attendanceRecords',
       'trainingPrograms',
       'trainingNominations',
+      'scheduledTrainings',
       'performanceAppraisals',
       'appraisals',
       'payrollComponents',
@@ -4087,6 +4111,314 @@ export class DatabaseService {
     });
   }
 
+  // --- Scheduled Training Directory ---
+  public static readonly TRAINING_REMINDER_MARKERS = [30, 14, 7, 1] as const;
+
+  public getScheduledTrainings(): ScheduledTraining[] {
+    let list = this.getItem<ScheduledTraining[]>('scheduledTrainings', []);
+    if (list.length === 0 && !this.isFactoryWiped() && localStorage.getItem(STORAGE_PREFIX + 'scheduledTrainings') === null) {
+      const d = (offsetDays: number) => {
+        const dt = new Date(Date.now() + offsetDays * 86400000);
+        return dt.toISOString().slice(0, 10);
+      };
+      list = [
+        {
+          id: 1,
+          scheduleCode: 'TRN-SCH-SEED-001',
+          trainingTitle: 'Public Procurement Act Compliance & Vendor Management',
+          trainingDate: d(12),
+          trainingType: 'Technical Services',
+          deliveryMode: 'In-Person',
+          fundingType: 'Paid',
+          certification: 'Certified',
+          provider: 'Public Procurement Authority (PPA)',
+          venueOrPlatform: 'PPA Training Hall, Accra',
+          budgetGhs: 8500,
+          targetMdaId: 1,
+          expectedParticipants: 25,
+          participants: [],
+          status: 'Approved',
+          documents: [],
+          reminderMarkersSent: [],
+          createdAt: new Date().toISOString(),
+        },
+        {
+          id: 2,
+          scheduleCode: 'TRN-SCH-SEED-002',
+          trainingTitle: 'Data Protection & Cybersecurity Awareness for MDAs',
+          trainingDate: d(28),
+          trainingType: 'Consultancy',
+          deliveryMode: 'Online',
+          fundingType: 'Free',
+          certification: 'Non-Certified',
+          provider: 'National Cyber Security Centre (NCSC)',
+          venueOrPlatform: 'Microsoft Teams — NCSC Portal',
+          budgetGhs: 0,
+          targetMdaId: 2,
+          expectedParticipants: 40,
+          participants: [],
+          status: 'Scheduled',
+          documents: [],
+          reminderMarkersSent: [],
+          createdAt: new Date().toISOString(),
+        },
+        {
+          id: 3,
+          scheduleCode: 'TRN-SCH-SEED-003',
+          trainingTitle: 'Records & Archives Management Refresher',
+          trainingDate: d(-6),
+          trainingType: 'Goods',
+          deliveryMode: 'In-Person',
+          fundingType: 'Paid',
+          certification: 'Certified',
+          provider: 'Public Records and Archives Administration Department (PRAAD)',
+          venueOrPlatform: 'PRAAD Auditorium, Accra',
+          budgetGhs: 4200,
+          actualCostGhs: 4650,
+          targetMdaId: 1,
+          expectedParticipants: 15,
+          participants: [
+            { employeeId: 1, attended: true, certificateIssued: true, certificateNumber: 'PRAAD-REC-2026-011' },
+            { employeeId: 2, attended: true, certificateIssued: true, certificateNumber: 'PRAAD-REC-2026-012' },
+          ],
+          status: 'Completed',
+          outcomes: 'Officers demonstrated improved filing and retrieval turnaround.',
+          lessonsLearned: 'Hybrid physical-digital sessions improved engagement.',
+          recommendations: 'Repeat quarterly for registry units.',
+          documents: [],
+          reminderMarkersSent: [30, 14, 7, 1],
+          createdAt: new Date(Date.now() - 40 * 86400000).toISOString(),
+        },
+      ];
+      this.setItem('scheduledTrainings', list);
+    }
+    return list;
+  }
+
+  public createScheduledTraining(
+    data: Omit<ScheduledTraining, 'id' | 'scheduleCode' | 'createdAt' | 'reminderMarkersSent' | 'documents' | 'participants'> & {
+      participants?: ScheduledTraining['participants'];
+      documents?: ScheduledTraining['documents'];
+    },
+    username: string
+  ): ScheduledTraining {
+    this.assertActorPermission('TRAINING_SCHEDULE_CREATE', 'Schedule Training Session', username);
+    const list = this.getScheduledTrainings();
+    const newId = list.length > 0 ? Math.max(...list.map((t) => t.id)) + 1 : 1;
+    const refYear = new Date().getFullYear();
+    const code = `TRN-SCH-${refYear}-${newId.toString().padStart(3, '0')}`;
+    const record: ScheduledTraining = {
+      ...data,
+      id: newId,
+      scheduleCode: code,
+      participants: data.participants || [],
+      documents: data.documents || [],
+      reminderMarkersSent: [],
+      createdAt: new Date().toISOString(),
+    };
+    list.push(record);
+    this.setItem('scheduledTrainings', list);
+    this.logAudit({
+      username,
+      machineName: 'WIN11-HR-NODE01',
+      module: 'Training & Development',
+      actionType: 'INSERT',
+      entityName: 'ScheduledTrainings',
+      recordId: code,
+      newValuesJson: JSON.stringify(record),
+    });
+    return record;
+  }
+
+  public updateScheduledTraining(
+    id: number,
+    data: Partial<ScheduledTraining>,
+    username: string
+  ): void {
+    this.assertActorPermission('TRAINING_SCHEDULE_EDIT', 'Update Scheduled Training', username);
+    const list = this.getScheduledTrainings();
+    const idx = list.findIndex((t) => t.id === id);
+    if (idx === -1) return;
+    const old = list[idx];
+    if (old.status === 'Cancelled' || old.status === 'Completed') {
+      throw new Error(`Cannot edit a ${old.status.toLowerCase()} scheduled training.`);
+    }
+    list[idx] = { ...old, ...data, updatedAt: new Date().toISOString() };
+    this.setItem('scheduledTrainings', list);
+    this.logAudit({
+      username,
+      machineName: 'WIN11-HR-NODE01',
+      module: 'Training & Development',
+      actionType: 'UPDATE',
+      entityName: 'ScheduledTrainings',
+      recordId: old.scheduleCode,
+      oldValuesJson: JSON.stringify(old),
+      newValuesJson: JSON.stringify(data),
+    });
+  }
+
+  public approveScheduledTraining(id: number, username: string): void {
+    this.assertActorPermission('TRAINING_SCHEDULE_APPROVE', 'Approve Scheduled Training', username);
+    const list = this.getScheduledTrainings();
+    const idx = list.findIndex((t) => t.id === id);
+    if (idx === -1) return;
+    const target = list[idx];
+    if (target.status !== 'Scheduled') {
+      throw new Error(`Only Scheduled trainings can be approved (current: ${target.status}).`);
+    }
+    list[idx] = { ...target, status: 'Approved', updatedAt: new Date().toISOString() };
+    this.setItem('scheduledTrainings', list);
+    this.logAudit({
+      username,
+      machineName: 'WIN11-HR-NODE01',
+      module: 'Training & Development',
+      actionType: 'UPDATE',
+      entityName: 'ScheduledTrainings',
+      recordId: target.scheduleCode,
+      newValuesJson: JSON.stringify({ status: 'Approved' }),
+    });
+    notificationService.success(
+      'Scheduled Training Approved',
+      `"${target.trainingTitle}" (${target.scheduleCode}) has been approved.`,
+      { module: 'Training & Development', actor: username }
+    );
+  }
+
+  public cancelScheduledTraining(id: number, reason: string, username: string): void {
+    this.assertActorPermission('TRAINING_SCHEDULE_CANCEL', 'Cancel Scheduled Training', username);
+    const list = this.getScheduledTrainings();
+    const idx = list.findIndex((t) => t.id === id);
+    if (idx === -1) return;
+    const target = list[idx];
+    if (target.status === 'Completed' || target.status === 'Cancelled') {
+      throw new Error(`Cannot cancel a ${target.status.toLowerCase()} scheduled training.`);
+    }
+    list[idx] = {
+      ...target,
+      status: 'Cancelled',
+      outcomes: target.outcomes || `Cancelled: ${reason || 'No reason provided.'}`,
+      updatedAt: new Date().toISOString(),
+    };
+    this.setItem('scheduledTrainings', list);
+    this.logAudit({
+      username,
+      machineName: 'WIN11-HR-NODE01',
+      module: 'Training & Development',
+      actionType: 'UPDATE',
+      entityName: 'ScheduledTrainings',
+      recordId: target.scheduleCode,
+      newValuesJson: JSON.stringify({ status: 'Cancelled', reason }),
+    });
+    notificationService.warning(
+      'Scheduled Training Cancelled',
+      `"${target.trainingTitle}" (${target.scheduleCode}) was cancelled.`,
+      { module: 'Training & Development', actor: username }
+    );
+  }
+
+  public completeScheduledTraining(
+    id: number,
+    completion: {
+      participants: ScheduledTraining['participants'];
+      actualCostGhs?: number;
+      outcomes?: string;
+      lessonsLearned?: string;
+      recommendations?: string;
+      documents?: ScheduledTraining['documents'];
+    },
+    username: string
+  ): void {
+    this.assertActorPermission('TRAINING_SCHEDULE_EDIT', 'Record Training Completion', username);
+    const list = this.getScheduledTrainings();
+    const idx = list.findIndex((t) => t.id === id);
+    if (idx === -1) return;
+    const target = list[idx];
+    if (target.status === 'Cancelled' || target.status === 'Completed') {
+      throw new Error(`Cannot record completion for a ${target.status.toLowerCase()} scheduled training.`);
+    }
+    list[idx] = {
+      ...target,
+      status: 'Completed',
+      participants: completion.participants ?? target.participants,
+      actualCostGhs: completion.actualCostGhs ?? target.actualCostGhs,
+      outcomes: completion.outcomes ?? target.outcomes,
+      lessonsLearned: completion.lessonsLearned ?? target.lessonsLearned,
+      recommendations: completion.recommendations ?? target.recommendations,
+      documents: completion.documents ?? target.documents,
+      updatedAt: new Date().toISOString(),
+    };
+    this.setItem('scheduledTrainings', list);
+    this.logAudit({
+      username,
+      machineName: 'WIN11-HR-NODE01',
+      module: 'Training & Development',
+      actionType: 'UPDATE',
+      entityName: 'ScheduledTrainings',
+      recordId: target.scheduleCode,
+      newValuesJson: JSON.stringify({ status: 'Completed', ...completion }),
+    });
+    notificationService.success(
+      'Scheduled Training Completed',
+      `"${target.trainingTitle}" (${target.scheduleCode}) marked completed.`,
+      { module: 'Training & Development', actor: username }
+    );
+  }
+
+  /**
+   * Evaluates 30/14/7/1-day pre-training reminder windows and emits a
+   * Notification Center entry for each marker that has come due since the
+   * last sync. Returns the number of reminders dispatched.
+   */
+  public syncScheduledTrainingReminders(): number {
+    const trainings = this.getScheduledTrainings();
+    if (trainings.length === 0) return 0;
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    let dispatched = 0;
+    let changed = false;
+
+    for (const t of trainings) {
+      if (t.status !== 'Scheduled' && t.status !== 'Approved') continue;
+      const trainingDate = new Date(`${t.trainingDate}T00:00:00`);
+      if (Number.isNaN(trainingDate.getTime())) continue;
+      const daysUntil = Math.round((trainingDate.getTime() - todayStart.getTime()) / 86400000);
+      if (daysUntil < 0) continue;
+
+      const sent = new Set(t.reminderMarkersSent || []);
+      const dueMarkers = DatabaseService.TRAINING_REMINDER_MARKERS.filter(
+        (m) => daysUntil <= m && !sent.has(m)
+      );
+      if (dueMarkers.length === 0) continue;
+
+      const dayLabel = daysUntil === 0 ? 'today' : `in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`;
+      const markerList = dueMarkers.map((m) => `${m}-day`).join(', ');
+      notificationService.warning(
+        `Training Reminder — ${markerList} Alert`,
+        `"${t.trainingTitle}" (${t.scheduleCode}) is scheduled ${dayLabel} on ${t.trainingDate}. ` +
+          `${t.deliveryMode === 'Online' ? `Platform: ${t.venueOrPlatform}` : `Venue: ${t.venueOrPlatform}`}.`,
+        { module: 'Training & Development', dedupKey: `trn-reminder-${t.id}-${dueMarkers.join('-')}` }
+      );
+      dueMarkers.forEach((m) => sent.add(m));
+      t.reminderMarkersSent = Array.from(sent);
+      changed = true;
+      dispatched++;
+    }
+
+    if (changed) {
+      this.setItem('scheduledTrainings', trainings);
+    }
+    return dispatched;
+  }
+
+  /** Days remaining until a scheduled training date (negative = past). */
+  public static daysUntilTraining(trainingDate: string): number {
+    const target = new Date(`${trainingDate}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (Number.isNaN(target.getTime())) return 0;
+    return Math.round((target.getTime() - today.getTime()) / 86400000);
+  }
+
   // --- Performance Management ---
   public getPerformanceAppraisals(employeeId?: number): PerformanceAppraisal[] {
     let appraisals = this.getItem<PerformanceAppraisal[]>('performanceAppraisals', []);
@@ -5119,6 +5451,7 @@ export class DatabaseService {
         attendanceRecords: this.getItem('attendanceRecords', []),
         trainingPrograms: this.getItem('trainingPrograms', []),
         trainingNominations: this.getItem('trainingNominations', []),
+        scheduledTrainings: this.getItem('scheduledTrainings', []),
         appraisals: this.getItem('appraisals', []),
         salaryStructures: this.getItem('salaryStructures', []),
         salaryGradeSteps: this.getItem('salaryGradeSteps', []),
@@ -5210,7 +5543,7 @@ export class DatabaseService {
         'memberships', 'priorHistory', 'documents', 'movements',
         'movementHistory', 'recruitmentApplicants', 'promotionRecommendations',
         'leaveTypes', 'leaveBalances', 'leaveApplications', 'attendanceRecords',
-        'trainingPrograms', 'trainingNominations', 'appraisals',
+        'trainingPrograms', 'trainingNominations', 'scheduledTrainings', 'appraisals',
         'salaryStructures', 'salaryGradeSteps', 'payrollComponents',
         'payrollAssignments', 'payrollRuns', 'payslips',
         'separationRecords', 'clearanceItems', 'disciplinaryCases',
@@ -5228,6 +5561,9 @@ export class DatabaseService {
       // (e.g. Principal Procurement Manager) appear even when restoring
       // snapshots captured before they existed.
       this.mergeDefaultGradeLevels();
+
+      // Migrate legacy department-scoped establishment posts to MDA scope
+      this.migrateEstablishmentMdaIds();
 
       this.ensureRoutePermissionsInitialized(true);
       this.notifySettingsUpdated();

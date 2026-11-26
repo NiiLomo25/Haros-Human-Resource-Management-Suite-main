@@ -28,7 +28,7 @@ import {
 import { db } from '../../db/storage';
 import { notificationService } from '../../services/notifications/notificationService';
 import { useAuth } from '../../context/AuthContext';
-import { EstablishmentPosition, Department, GradeLevel, Mda } from '../../types';
+import { EstablishmentPosition } from '../../types';
 import { SearchableSelect } from '../common/SearchableSelect';
 import { SlideOverPanel } from '../common/SlideOverPanel';
 
@@ -42,7 +42,7 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
 
   // Filters state
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterDeptId, setFilterDeptId] = useState<string>('all');
+  const [filterMdaId, setFilterMdaId] = useState<string>('all');
   const [filterGradeId, setFilterGradeId] = useState<string>('all');
   const [filterVariance, setFilterVariance] = useState<'all' | 'vacant' | 'overstaffed' | 'balanced'>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -55,7 +55,6 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
 
   // Fetch data
   const mdas = useMemo(() => db.getMdas(), []);
-  const departments = useMemo(() => db.getDepartments(), [dataVersion]);
   const gradeLevels = useMemo(() => db.getGradeLevels(), []);
   const rawEstablishments = useMemo(() => db.getEstablishmentPositions(), [dataVersion]);
   const employees = useMemo(() => db.getEmployees(), [dataVersion]);
@@ -63,16 +62,20 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
   // Compute live occupancy and variance for every establishment post
   const establishmentData = useMemo(() => {
     return rawEstablishments.map((post) => {
-      const dept = departments.find((d) => d.id === post.departmentId);
+      const mda = mdas.find((m) => m.id === post.mdaId);
       const grade = gradeLevels.find((g) => g.id === post.gradeId);
-      const mda = mdas.find((m) => m.id === dept?.mdaId);
+      const officer = post.officerEmployeeId
+        ? employees.find((e) => e.id === post.officerEmployeeId)
+        : undefined;
+      const officerInfo = officer ? db.getEmployeeEmploymentInfo(officer.id) : undefined;
+      const officerPersonal = officer ? db.getEmployeePersonalInfo(officer.id) : undefined;
 
-      // Count active employees who match this department and this grade level
+      // Count active employees who match this MDA and this grade level
       const occupyingStaff = employees.filter((emp) => {
         const empInfo = db.getEmployeeEmploymentInfo(emp.id);
         if (!empInfo) return false;
         return (
-          empInfo.currentDepartmentId === post.departmentId &&
+          empInfo.currentMdaId === post.mdaId &&
           empInfo.currentGradeId === post.gradeId &&
           empInfo.currentEmploymentStatus === 'Active'
         );
@@ -92,9 +95,11 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
 
       return {
         post,
-        dept,
-        grade,
         mda,
+        grade,
+        officer,
+        officerName: officerPersonal?.fullName || (officer ? `${officerPersonal?.firstName ?? ''} ${officerPersonal?.surname ?? ''}`.trim() : undefined),
+        officerTitle: officerInfo?.currentPositionTitle,
         occupiedCadre,
         approvedQuota,
         vacancyCount,
@@ -104,7 +109,7 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
         isProf,
       };
     });
-  }, [rawEstablishments, departments, gradeLevels, mdas, employees]);
+  }, [rawEstablishments, gradeLevels, mdas, employees]);
 
   // Filtered List
   const filteredList = useMemo(() => {
@@ -114,13 +119,14 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
         const q = searchTerm.toLowerCase();
         const matchCode = item.post.positionCode.toLowerCase().includes(q);
         const matchTitle = item.post.positionTitle.toLowerCase().includes(q);
-        const matchDept = item.dept?.departmentName.toLowerCase().includes(q) || false;
+        const matchMda = item.mda?.name.toLowerCase().includes(q) || item.mda?.code.toLowerCase().includes(q) || false;
         const matchGrade = item.grade?.gradeName.toLowerCase().includes(q) || false;
-        if (!matchCode && !matchTitle && !matchDept && !matchGrade) return false;
+        const matchOfficer = item.officerName?.toLowerCase().includes(q) || false;
+        if (!matchCode && !matchTitle && !matchMda && !matchGrade && !matchOfficer) return false;
       }
 
-      // Department filter
-      if (filterDeptId !== 'all' && item.post.departmentId.toString() !== filterDeptId) {
+      // MDA filter
+      if (filterMdaId !== 'all' && item.post.mdaId.toString() !== filterMdaId) {
         return false;
       }
 
@@ -139,7 +145,7 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
 
       return true;
     });
-  }, [establishmentData, searchTerm, filterDeptId, filterGradeId, filterVariance, filterStatus]);
+  }, [establishmentData, searchTerm, filterMdaId, filterGradeId, filterVariance, filterStatus]);
 
   // Aggregate Metrics
   const aggregateMetrics = useMemo(() => {
@@ -155,9 +161,9 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
     const headers = [
       'Position Code',
       'Position Title',
-      'Department Code',
-      'Department Name',
+      'Civil Service Officer',
       'MDA Code',
+      'MDA Name',
       'Grade Level',
       'Cadre Type',
       'Approved Quota',
@@ -170,9 +176,9 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
     const rows = filteredList.map((item) => [
       `"${item.post.positionCode}"`,
       `"${item.post.positionTitle}"`,
-      `"${item.dept?.departmentCode || ''}"`,
-      `"${item.dept?.departmentName || ''}"`,
+      `"${item.officerName || ''}"`,
       `"${item.mda?.code || ''}"`,
+      `"${item.mda?.name || ''}"`,
       `"${item.grade?.gradeName || ''}"`,
       `"${item.isProf ? 'Professional' : 'Sub-Professional'}"`,
       item.approvedQuota,
@@ -199,16 +205,43 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
 
   // Form State for Create / Edit Post
   const [formCode, setFormCode] = useState('');
-  const [formTitle, setFormTitle] = useState('');
-  const [formDeptId, setFormDeptId] = useState<number>(departments[0]?.id || 1);
+  const [formOfficerEmpId, setFormOfficerEmpId] = useState<number>(0);
+  const [formMdaId, setFormMdaId] = useState<number>(mdas[0]?.id || 1);
   const [formGradeId, setFormGradeId] = useState<number>(gradeLevels[0]?.id || 1);
   const [formQuota, setFormQuota] = useState<number>(1);
   const [formStatus, setFormStatus] = useState<'Active' | 'Frozen' | 'Abolished'>('Active');
 
+  // Active, approved Civil Service Officer records eligible to define a post
+  const officerOptions = useMemo(() => {
+    return employees
+      .filter((emp) => {
+        if (!emp.isActive) return false;
+        const info = db.getEmployeeEmploymentInfo(emp.id);
+        return info?.currentEmploymentStatus === 'Active';
+      })
+      .map((emp) => {
+        const pers = db.getEmployeePersonalInfo(emp.id);
+        const empInfo = db.getEmployeeEmploymentInfo(emp.id);
+        const name = pers?.fullName || `${pers?.firstName ?? ''} ${pers?.surname ?? ''}`.trim() || 'Officer';
+        return {
+          value: emp.id.toString(),
+          label: `${emp.staffId} - ${name}`,
+          subLabel: empInfo?.currentPositionTitle,
+        };
+      });
+  }, [employees]);
+
+  const resolvePostTitle = (officerEmpId: number) => {
+    const officer = employees.find((e) => e.id === officerEmpId);
+    const empInfo = officer ? db.getEmployeeEmploymentInfo(officer.id) : undefined;
+    const grade = gradeLevels.find((g) => g.id === formGradeId);
+    return empInfo?.currentPositionTitle || grade?.gradeName || 'Civil Service Officer';
+  };
+
   const handleOpenCreateModal = () => {
     setFormCode(`POS-${Math.floor(100 + Math.random() * 900)}`);
-    setFormTitle('');
-    setFormDeptId(departments[0]?.id || 1);
+    setFormOfficerEmpId(0);
+    setFormMdaId(mdas[0]?.id || 1);
     setFormGradeId(gradeLevels[0]?.id || 1);
     setFormQuota(2);
     setFormStatus('Active');
@@ -219,8 +252,8 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
   const handleOpenEditModal = (post: EstablishmentPosition) => {
     setEditingPost(post);
     setFormCode(post.positionCode);
-    setFormTitle(post.positionTitle);
-    setFormDeptId(post.departmentId);
+    setFormOfficerEmpId(post.officerEmployeeId || 0);
+    setFormMdaId(post.mdaId);
     setFormGradeId(post.gradeId);
     setFormQuota(post.approvedCadreQuota);
     setFormStatus(post.status);
@@ -229,33 +262,25 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
 
   const handleSavePost = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formCode.trim() || !formTitle.trim()) return;
+    if (!formCode.trim()) return;
+
+    const positionTitle = formOfficerEmpId
+      ? resolvePostTitle(formOfficerEmpId)
+      : editingPost?.positionTitle || 'Civil Service Officer';
+    const payload = {
+      positionCode: formCode.trim().toUpperCase(),
+      mdaId: formMdaId,
+      gradeId: formGradeId,
+      positionTitle,
+      officerEmployeeId: formOfficerEmpId || undefined,
+      approvedCadreQuota: formQuota,
+      status: formStatus,
+    };
 
     if (editingPost) {
-      db.updateEstablishmentPosition(
-        editingPost.id,
-        {
-          positionCode: formCode.trim().toUpperCase(),
-          positionTitle: formTitle.trim(),
-          departmentId: formDeptId,
-          gradeId: formGradeId,
-          approvedCadreQuota: formQuota,
-          status: formStatus,
-        },
-        currentUser?.username || 'admin'
-      );
+      db.updateEstablishmentPosition(editingPost.id, payload, currentUser?.username || 'admin');
     } else {
-      db.createEstablishmentPosition(
-        {
-          positionCode: formCode.trim().toUpperCase(),
-          positionTitle: formTitle.trim(),
-          departmentId: formDeptId,
-          gradeId: formGradeId,
-          approvedCadreQuota: formQuota,
-          status: formStatus,
-        },
-        currentUser?.username || 'admin'
-      );
+      db.createEstablishmentPosition(payload, currentUser?.username || 'admin');
     }
 
     setShowCreateModal(false);
@@ -358,7 +383,7 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
-              placeholder="Search by position code (e.g. POS-101), title, department, or grade..."
+              placeholder="Search by position code (e.g. POS-101), title, MDA, officer, or grade..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-300 rounded focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
@@ -382,23 +407,23 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
 
         {/* Dropdowns */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-2 border-t border-slate-100 text-xs">
-          {/* Department */}
+          {/* MDA */}
           <div>
             <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">
-              Department
+              MDA
             </label>
             <SearchableSelect
-              value={filterDeptId}
-              onChange={(val) => setFilterDeptId(val)}
+              value={filterMdaId}
+              onChange={(val) => setFilterMdaId(val)}
               options={[
-                { value: 'all', label: 'All Departments' },
-                ...departments.map((d) => ({
-                  value: d.id.toString(),
-                  label: `${d.departmentCode} - ${d.departmentName}`,
+                { value: 'all', label: 'All MDAs' },
+                ...mdas.map((m) => ({
+                  value: m.id.toString(),
+                  label: `${m.code} - ${m.name}`,
                 })),
               ]}
-              placeholder="All Departments"
-              searchPlaceholder="Filter departments..."
+              placeholder="All MDAs"
+              searchPlaceholder="Filter MDAs..."
             />
           </div>
 
@@ -418,7 +443,7 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
                 })),
               ]}
               placeholder="All Grades"
-              searchPlaceholder="Filter position titles..."
+              searchPlaceholder="Filter grade levels..."
             />
           </div>
 
@@ -470,7 +495,7 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold select-none">
                 <th className="p-3">Position Code</th>
                 <th className="p-3">Designation & Cadre</th>
-                <th className="p-3">MDA & Department</th>
+                <th className="p-3">MDA</th>
                 <th className="p-3">Grade Level</th>
                 <th className="p-3 text-center">Approved Quota</th>
                 <th className="p-3 text-center">Occupied</th>
@@ -501,6 +526,11 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
                       {/* Title & Cadre */}
                       <td className="p-3">
                         <div className="font-semibold text-slate-900">{p.positionTitle}</div>
+                        {item.officerName && (
+                          <div className="text-[10px] text-slate-500 mt-0.5">
+                            Officer: {item.officerName}
+                          </div>
+                        )}
                         <div className="text-[11px] text-slate-500 flex items-center space-x-1.5 mt-0.5">
                           {item.isProf ? (
                             <span className="inline-flex items-center text-blue-700 font-semibold">
@@ -516,12 +546,11 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
                         </div>
                       </td>
 
-                      {/* MDA & Department — MDA name primary, department beneath */}
+                      {/* MDA — primary placement */}
                       <td className="p-3">
                         <div className="font-medium text-slate-800">{item.mda?.name || '—'}</div>
                         <div className="text-[10px] text-slate-500">
-                          {item.dept?.departmentName}
-                          {item.mda?.code ? ` (${item.mda.code})` : ''}
+                          {item.mda?.code || ''}
                         </div>
                       </td>
 
@@ -632,7 +661,7 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
             }
             subtitle={
               activeInspected
-                ? `${activeInspected.dept?.departmentName || 'Department'} • Grade: ${activeInspected.grade?.gradeName || ''} • Approved: ${activeInspected.approvedQuota} Posts`
+                ? `${activeInspected.mda?.name || 'MDA'} (${activeInspected.mda?.code || ''}) • Grade: ${activeInspected.grade?.gradeName || ''} • Approved: ${activeInspected.approvedQuota} Posts`
                 : 'Occupying Officers'
             }
             icon={<Users className="w-4 h-4" />}
@@ -732,31 +761,41 @@ export const EstablishmentView: React.FC<EstablishmentViewProps> = ({ onSelectEm
 
             <div>
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                Designation / Position Title <span className="text-red-500">*</span>
+                Civil Service Officer <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                placeholder="e.g. Director, Principal HR Officer"
-                value={formTitle}
-                onChange={(e) => setFormTitle(e.target.value)}
-                required
-                className="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600"
+              <SearchableSelect
+                value={formOfficerEmpId ? formOfficerEmpId.toString() : ''}
+                onChange={(val) => {
+                  const empId = parseInt(val, 10);
+                  setFormOfficerEmpId(empId);
+                  const empInfo = db.getEmployeeEmploymentInfo(empId);
+                  if (empInfo?.currentGradeId) setFormGradeId(empInfo.currentGradeId);
+                  if (empInfo?.currentMdaId) setFormMdaId(empInfo.currentMdaId);
+                }}
+                options={officerOptions}
+                placeholder="Select civil service officer..."
+                searchPlaceholder="Search officer by Staff ID or name..."
+                buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 h-10"
               />
+              <p className="text-[10px] text-slate-400 mt-1">
+                Post designation and grade are derived from the selected officer&apos;s active record.
+              </p>
             </div>
 
             <div>
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                Department <span className="text-red-500">*</span>
+                MDA <span className="text-red-500">*</span>
               </label>
               <SearchableSelect
-                value={formDeptId.toString()}
-                onChange={(val) => setFormDeptId(parseInt(val, 10))}
-                options={departments.map((d) => ({
-                  value: d.id.toString(),
-                  label: `${d.departmentCode} - ${d.departmentName}`,
+                value={formMdaId.toString()}
+                onChange={(val) => setFormMdaId(parseInt(val, 10))}
+                options={mdas.map((m) => ({
+                  value: m.id.toString(),
+                  label: `${m.code} - ${m.name}`,
+                  subLabel: m.mdaType,
                 }))}
-                placeholder="Select department..."
-                searchPlaceholder="Filter departments..."
+                placeholder="Select MDA..."
+                searchPlaceholder="Filter MDAs..."
                 buttonClassName="w-full p-2 bg-slate-50 border border-slate-300 rounded text-slate-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-600 h-10"
               />
             </div>

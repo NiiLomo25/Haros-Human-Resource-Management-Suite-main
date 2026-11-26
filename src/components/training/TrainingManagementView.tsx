@@ -13,6 +13,7 @@ import {
   Download,
   CheckCircle2,
   Calendar,
+  CalendarClock,
   Building2,
   ChevronRight,
   User,
@@ -40,6 +41,7 @@ import {
 } from '../../types';
 import { SearchableSelect } from '../common/SearchableSelect';
 import { SlideOverPanel } from '../common/SlideOverPanel';
+import { ScheduledTrainingView } from './ScheduledTrainingView';
 
 export const CIVIL_SERVICE_TRAINING_CATEGORIES = [
   'Academic/Institution',
@@ -61,8 +63,8 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
   const { currentUser, hasPermission } = useAuth();
   const [dataVersion, setDataVersion] = useState(0);
 
-  // Active Tab: 'programs' | 'nominations'
-  const [activeTab, setActiveTab] = useState<'programs' | 'nominations'>('programs');
+  // Active Tab: 'scheduled' | 'programs' | 'nominations'
+  const [activeTab, setActiveTab] = useState<'scheduled' | 'programs' | 'nominations'>('scheduled');
 
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
@@ -423,6 +425,18 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
       {/* Tabs */}
       <div className="flex items-center space-x-2 border-b border-slate-200">
         <button
+          onClick={() => setActiveTab('scheduled')}
+          className={`flex items-center space-x-2 py-2 px-4 text-xs font-bold border-b-2 transition-all ${
+            activeTab === 'scheduled'
+              ? 'border-blue-700 text-blue-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <CalendarClock className="w-4 h-4" />
+          <span>Scheduled Training Directory</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('programs')}
           className={`flex items-center space-x-2 py-2 px-4 text-xs font-bold border-b-2 transition-all ${
             activeTab === 'programs'
@@ -446,6 +460,9 @@ export const TrainingManagementView: React.FC<TrainingManagementViewProps> = ({
           <span>Nominated Officers & Certifications ({nominations.length})</span>
         </button>
       </div>
+
+      {/* TAB 0: SCHEDULED TRAINING DIRECTORY */}
+      {activeTab === 'scheduled' && <ScheduledTrainingView onSelectEmployee={onSelectEmployee} />}
 
       {/* TAB 1: PROGRAMS */}
       {activeTab === 'programs' && (
